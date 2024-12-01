@@ -1,2 +1,7 @@
 3d_model/target
 3d_model/*.stl
+*.gbr*
+*.drl
+*.zip
+*.png
+
