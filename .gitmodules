@@ -1,3 +1,12 @@
 [submodule "opencascade-rs"]
 	path = opencascade-rs
 	url = https://github.com/bschwind/opencascade-rs.git
+[submodule "PJ-320A_KiCad_Library"]
+	path = PJ-320A_KiCad_Library
+	url = https://github.com/nathanhborger/PJ-320A_KiCad_Library.git
+[submodule "RP2040-Zero-Kicad-Footprint"]
+	path = RP2040-Zero-Kicad-Footprint
+	url = https://github.com/ihatechoosingusernames/RP2040-Zero-Kicad-Footprint.git
+[submodule "keyboard_footprints"]
+	path = keyboard_footprints
+	url = https://github.com/pierrechevalier83/keyboard_footprints.git
