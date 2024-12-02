@@ -7,7 +7,7 @@ pub(crate) const SWITCH_HOLE_XYZ: DVec3 = DVec3::new(14., 14., 2.2);
 
 // Keycap dimensions (mm) for calculating switch postitions
 // and avoiding interference
-pub(crate) const KEYCAP_XYZ: DVec3 = DVec3::new(17.5, 16.5, 8. + SWITCH_PLATE_XYZ.z / 2.);
+pub(crate) const KEYCAP_XYZ: DVec3 = DVec3::new(17.5, 16.5, 8.);
 
 // Number of switches
 pub(crate) const NUM_COLS: usize = 5;
