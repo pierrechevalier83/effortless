@@ -1,0 +1,4 @@
+(fp_lib_table
+  (version 7)
+  (lib (name "effortless_switch")(type "KiCad")(uri "${KIPRJMOD}/effortless_switch.pretty")(options "")(descr ""))
+)
