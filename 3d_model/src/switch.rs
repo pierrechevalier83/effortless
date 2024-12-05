@@ -11,7 +11,7 @@ use opencascade::workplane::Workplane;
 use opencascade::Error;
 
 fn centered_rectangle(workplane: Workplane, x: f64, y: f64) -> Wire {
-    centered_rectangle_with_optional_margins(workplane, x, y, None, None)
+    centered_rectangle_with_optional_margins(workplane, x, y, None, None, None, None)
 }
 
 fn centered_rectangle_with_optional_margins(
@@ -20,13 +20,27 @@ fn centered_rectangle_with_optional_margins(
     y: f64,
     margin_left: Option<f64>,
     margin_right: Option<f64>,
+    margin_top: Option<f64>,
+    margin_bottom: Option<f64>,
 ) -> Wire {
     workplane
         .sketch()
-        .move_to(-x / 2. - margin_left.unwrap_or(0.), -y / 2.) // Bottom Left
-        .line_to(-x / 2. - margin_left.unwrap_or(0.), y / 2.) // Top Left
-        .line_to(x / 2. + margin_right.unwrap_or(0.), y / 2.) // Top Right
-        .line_to(x / 2. + margin_right.unwrap_or(0.), -y / 2.) // Bottom Right
+        .move_to(
+            -x / 2. - margin_left.unwrap_or(0.),
+            -y / 2. - margin_bottom.unwrap_or(0.),
+        ) // Bottom Left
+        .line_to(
+            -x / 2. - margin_left.unwrap_or(0.),
+            y / 2. + margin_top.unwrap_or(0.),
+        ) // Top Left
+        .line_to(
+            x / 2. + margin_right.unwrap_or(0.),
+            y / 2. + margin_top.unwrap_or(0.),
+        ) // Top Right
+        .line_to(
+            x / 2. + margin_right.unwrap_or(0.),
+            -y / 2. - margin_bottom.unwrap_or(0.),
+        ) // Bottom Right
         .close()
 }
 
@@ -46,23 +60,39 @@ impl Switch {
         let plate = self
             .top_face()
             .extrude(-SWITCH_PLATE_XYZ.z * self.workplane.normal());
-        self.punch(plate.into(), false, false)
+        self.punch(plate.into(), None, None, None, None)
     }
-    fn all_space_above_the_switch(&self, margin_left: bool, margin_right: bool) -> Shape {
+    fn all_space_above_the_switch(
+        &self,
+        margin_left: Option<f64>,
+        margin_right: Option<f64>,
+        margin_top: Option<f64>,
+        margin_bottom: Option<f64>,
+    ) -> Shape {
         let shape: Shape = centered_rectangle_with_optional_margins(
             self.workplane.clone(),
             SWITCH_PLATE_XYZ.x,
             SWITCH_PLATE_XYZ.y,
-            if margin_left { Some(1.) } else { None },
-            if margin_right { Some(1.) } else { None },
+            margin_left,
+            margin_right,
+            margin_top,
+            margin_bottom,
         )
         .to_face()
         .extrude(VIRTUAL_INFINITY * self.workplane.normal())
         .into();
         shape.clean()
     }
-    pub fn punch(&self, shape: Shape, margin_left: bool, margin_right: bool) -> Shape {
-        let all_space_above_the_switch = self.all_space_above_the_switch(margin_left, margin_right);
+    pub fn punch(
+        &self,
+        shape: Shape,
+        margin_left: Option<f64>,
+        margin_right: Option<f64>,
+        margin_top: Option<f64>,
+        margin_bottom: Option<f64>,
+    ) -> Shape {
+        let all_space_above_the_switch =
+            self.all_space_above_the_switch(margin_left, margin_right, margin_top, margin_bottom);
         let switch_body_cutout =
             centered_rectangle(self.workplane.clone(), SWITCH_HOLE_XYZ.x, SWITCH_HOLE_XYZ.y)
                 .to_face()

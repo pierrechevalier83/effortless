@@ -41,9 +41,9 @@ pub(crate) const COL_Z_STAGGER: [f64; NUM_COLS] = [6., -0.5, -3.5, 0., 0.];
 
 // Thumb cluster
 // Dimensions (mm)
-pub(crate) const THUMB0_XYZ: DVec3 = DVec3::new(80., -50., 18.);
+pub(crate) const THUMB0_XYZ: DVec3 = DVec3::new(80., -40., 16.);
 pub(crate) const THUMB0_ROTATION: RVec = RVec {
-    x: Angle::Degrees(35.),
+    x: Angle::Degrees(25.),
     y: Angle::Degrees(10.),
     z: Angle::Degrees(-15.),
 };

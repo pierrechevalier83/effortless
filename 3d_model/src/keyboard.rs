@@ -1,6 +1,6 @@
 use crate::geometry;
 use crate::params::{
-    COL_ANGLES_Y, NUM_COLS, ROW_ANGLES_X, SWITCH_PLATE_XYZ, THUMB0_ROTATION, THUMB0_XYZ,
+    COL_ANGLES_Y, NUM_COLS, NUM_ROWS, ROW_ANGLES_X, SWITCH_PLATE_XYZ, THUMB0_ROTATION, THUMB0_XYZ,
     VIRTUAL_INFINITY,
 };
 use crate::switch::Switch;
@@ -185,16 +185,17 @@ impl XYThumbsSketch {
     }
 }
 
-// A simple sketch to trim the top of the XYSketches' loft
-// -INF m--------------------------------------l INF
-//      |                                      |
-//      |                                      |
-//      |     0,0                              |
-//      |            1,0             3,0   4,0 |
-//      |   b-----c        2,0                 |
-// (z)  |   a     d-----e      h-----i----j----k INF
-// ^    |    \          f-----g
-// |    n-----o
+// A simple sketch to trim a plane on the left side that we can print from
+//          INF
+// -INF e---f
+//      |   |
+//      |   |
+//      |   |  0,0
+//      |   |
+//      |   a
+// (z)  |   b
+// ^    |    \
+// |    d-----c
 // o--> (x)
 struct XZMatrixSketch {
     workplane: Workplane,
@@ -207,17 +208,9 @@ impl XZMatrixSketch {
         use Direction::*;
         // We pick PosZ for all of them, because we wouldn't want to trim our switch footprint,
         // now. Would we?
-        let a = switch_matrix[0][0].coordinate(NegX, NegY, NegZ);
-        let b = switch_matrix[0][0].coordinate(NegX, NegY, PosZ);
-        let c = switch_matrix[0][0].coordinate(PosX, NegY, PosZ);
-        let d = switch_matrix[1][0].coordinate(NegX, NegY, PosZ);
-        let e = switch_matrix[1][0].coordinate(PosX, NegY, PosZ);
-        let f = switch_matrix[2][0].coordinate(NegX, NegY, PosZ);
-        let g = switch_matrix[2][0].coordinate(PosX, NegY, PosZ);
-        let h = switch_matrix[3][0].coordinate(NegX, NegY, PosZ);
-        let i = switch_matrix[3][0].coordinate(PosX, NegY, PosZ);
-        let j = switch_matrix[4][0].coordinate(PosX, NegY, PosZ);
-        let construction_points = [a, b, c, d, e, f, g, h, i, j]
+        let a = switch_matrix[0][0].coordinate(NegX, NegY, PosZ);
+        let b = switch_matrix[0][0].coordinate(NegX, NegY, NegZ);
+        let construction_points = [a, b]
             .iter()
             .map(|point| project_to_plane(&workplane, *point))
             .collect();
@@ -232,93 +225,25 @@ impl XZMatrixSketch {
     }
     fn world_at(&self, reference: char) -> DVec3 {
         let local = match reference {
-            'k' => dvec2(VIRTUAL_INFINITY, self.local_at('j').y),
-            'l' => dvec2(VIRTUAL_INFINITY, VIRTUAL_INFINITY),
-            'm' => dvec2(-VIRTUAL_INFINITY, VIRTUAL_INFINITY),
-            'n' => dvec2(-VIRTUAL_INFINITY, 0.),
-            // TODO: parameterize this magic number. The idea is to have
-            // at least 3 * COL_CURV angle so we can print from this side
-            'o' => dvec2(
+            'c' => dvec2(
+                // TODO: parameterize this magic number. The idea is to have
+                // at least 3 * COL_CURV angle so we can print from this side
                 self.local_at('a').x + 10. * Angle::Degrees(15. + 18.).radians().cos(),
                 0.,
             ),
+            'd' => dvec2(-VIRTUAL_INFINITY, 0.),
+            'e' => dvec2(-VIRTUAL_INFINITY, VIRTUAL_INFINITY),
+            'f' => dvec2(0., VIRTUAL_INFINITY),
             _ => self.local_at(reference),
         };
         self.workplane.to_world_pos(dvec3(local.x, local.y, 0.))
     }
     fn shape(&self) -> Shape {
-        let outline = [
-            'a', 'b', 'c', 'd', 'e', 'f', 'g', 'h', 'i', 'j', 'k', 'l', 'm', 'n', 'o',
-        ]
-        .into_iter()
-        .map(|point| self.world_at(point));
+        let outline = ['a', 'b', 'c', 'd', 'e', 'f']
+            .into_iter()
+            .map(|point| self.world_at(point));
         Wire::from_ordered_points(outline)
             .unwrap()
-            .to_face()
-            .extrude(self.workplane.normal() * VIRTUAL_INFINITY)
-            .into()
-    }
-}
-
-// A simple sketch to trim the leftofver on to the right of the right index column
-//  INF                          INF
-//  h----------------------------g
-//  | 4,0                    4,2 |
-//  a----b                 e-----f
-//          \   4, 1    /
-//            c----d
-//  ^ (z)
-//  |
-//  o--> (y)
-struct YZMatrixSketch {
-    workplane: Workplane,
-    construction_points: Vec<DVec2>,
-}
-
-impl YZMatrixSketch {
-    fn new(switch_matrix: &Vec<Vec<Switch>>) -> Self {
-        let workplane = Workplane::yz();
-        use Direction::*;
-        let a = switch_matrix[4][0].coordinate(PosX, NegY, PosZ);
-        let b = switch_matrix[4][0].coordinate(PosX, PosY, PosZ);
-        let c = switch_matrix[4][1].coordinate(PosX, NegY, PosZ);
-        let d = switch_matrix[4][1].coordinate(PosX, PosY, PosZ);
-        let e = switch_matrix[4][2].coordinate(PosX, NegY, PosZ);
-        let f = switch_matrix[4][2].coordinate(PosX, PosY, PosZ);
-        let construction_points = [a, b, c, d, e, f]
-            .iter()
-            .map(|point| project_to_plane(&workplane, *point))
-            .collect();
-        Self {
-            workplane,
-            construction_points,
-        }
-    }
-    fn local_at(&self, reference: char) -> DVec2 {
-        let index = (reference as u8 - 'a' as u8) as usize;
-        self.construction_points[index]
-    }
-    fn world_at(&self, reference: char) -> DVec3 {
-        let local = match reference {
-            'g' => dvec2(self.local_at('f').x, VIRTUAL_INFINITY),
-            'h' => dvec2(self.local_at('a').x, VIRTUAL_INFINITY),
-            _ => self.local_at(reference),
-        };
-        self.workplane.to_world_pos(dvec3(local.x, local.y, 0.))
-    }
-    fn shape(&self) -> Shape {
-        let a = self.world_at('a');
-        let d = self.world_at('d');
-        let f = self.world_at('f');
-        let g = self.world_at('g');
-        let h = self.world_at('h');
-        let mut builder = WireBuilder::new();
-        builder.add_edge(&Edge::segment(a, h));
-        builder.add_edge(&Edge::segment(h, g));
-        builder.add_edge(&Edge::segment(g, f));
-        builder.add_edge(&Edge::arc(a, d, f));
-        builder
-            .build()
             .to_face()
             .extrude(self.workplane.normal() * VIRTUAL_INFINITY)
             .into()
@@ -426,7 +351,12 @@ impl Keyboard {
         let workplane = Workplane::xy();
         XYThumbsSketch::new(&workplane, &self.thumbs).wire()
     }
-    fn loft_switches(btm: &Switch, top: &Switch, margin_left: bool, margin_right: bool) -> Shape {
+    fn loft_switches(
+        btm: &Switch,
+        top: &Switch,
+        margin_left: Option<f64>,
+        margin_right: Option<f64>,
+    ) -> Shape {
         use Direction::*;
         // Describe a triangle, looking from the left that we can extrude to loft
         let btm_right = btm.coordinate(NegX, PosY, PosZ);
@@ -446,24 +376,29 @@ impl Keyboard {
             .unwrap()
             .to_face();
         let shape: Shape = triangle
-            .extrude(
-                (SWITCH_PLATE_XYZ.x + if margin_right { 1. } else { 0. }) * btm.workplane.x_dir(),
-            )
+            .extrude((SWITCH_PLATE_XYZ.x + margin_right.unwrap_or(0.)) * btm.workplane.x_dir())
             .into();
         let shape: Shape = (&shape)
             .union(
                 &triangle
                     .extrude(
-                        (SWITCH_PLATE_XYZ.x + if margin_right { 1. } else { 0. })
-                            * top.workplane.x_dir(),
+                        (SWITCH_PLATE_XYZ.x + margin_right.unwrap_or(0.)) * top.workplane.x_dir(),
                     )
                     .into(),
             )
             .into();
-        if margin_left {
+        if let Some(margin_left) = margin_left {
             (&shape)
-                .union(&triangle.extrude(-1. * top.workplane.x_dir()).into())
-                .union(&triangle.extrude(-1. * btm.workplane.x_dir()).into())
+                .union(
+                    &triangle
+                        .extrude(-1. * margin_left * top.workplane.x_dir())
+                        .into(),
+                )
+                .union(
+                    &triangle
+                        .extrude(-1. * margin_left * btm.workplane.x_dir())
+                        .into(),
+                )
                 .into()
         } else {
             shape
@@ -478,15 +413,27 @@ impl Keyboard {
         .into();
         for (col_index, col) in self.switch_matrix.iter().enumerate() {
             let margin_left = match col_index {
-                0 | 3 => true,
-                _ => false,
+                0 => Some(VIRTUAL_INFINITY),
+                3 | 4 => Some(1.),
+                _ => None,
             };
             let margin_right = match col_index {
-                0 | 1 => true,
-                _ => false,
+                0 | 1 => Some(1.),
+                4 => Some(VIRTUAL_INFINITY),
+                _ => None,
             };
-            for switch in col.iter() {
-                shape = switch.punch(shape, margin_left, margin_right);
+            for (row_index, switch) in col.iter().enumerate() {
+                let margin_top = if row_index == NUM_ROWS - 1 {
+                    Some(VIRTUAL_INFINITY)
+                } else {
+                    None
+                };
+                let margin_bottom = if row_index == 0 {
+                    Some(VIRTUAL_INFINITY)
+                } else {
+                    None
+                };
+                shape = switch.punch(shape, margin_left, margin_right, margin_top, margin_bottom);
             }
             let loft = Self::loft_switches(
                 &self.switch_matrix[col_index][0],
@@ -505,7 +452,7 @@ impl Keyboard {
         }
         shape = shape
             .subtract(&XZMatrixSketch::new(&self.switch_matrix).shape())
-            .subtract(&YZMatrixSketch::new(&self.switch_matrix).shape())
+            //.subtract(&YZMatrixSketch::new(&self.switch_matrix).shape())
             .into();
         shape
     }
@@ -516,8 +463,9 @@ impl Keyboard {
             self.mid_xy_thumbs_wire(),
         ])
         .into();
+        shape = shape.fillet(3.);
         for thumb in self.thumbs.iter() {
-            shape = thumb.punch(shape, false, false);
+            shape = thumb.punch(shape, Some(1.), None, Some(10.), None);
         }
         shape
     }
@@ -550,11 +498,6 @@ mod test {
             .to_face()
             .into();
         shape.write_stl("test_xy_thumbs_sketch.stl").unwrap();
-    }
-    #[test]
-    fn test_yz_matrix_sketch() {
-        let shape: Shape = YZMatrixSketch::new(&Keyboard::new().switch_matrix).shape();
-        shape.write_stl("test_yz_matrix_sketch.stl").unwrap();
     }
     #[test]
     fn test_xz_matrix_sketch() {
