@@ -97,10 +97,15 @@ impl XYMatrixSketch {
             // TODO: parameterize these margins
             'j' => dvec2(self.local_at('j').x + 5., self.local_at('j').y),
             'k' => dvec2(self.local_at('k').x + 5., self.local_at('k').y),
+            'l' => dvec2(self.local_at('l').x, self.local_at('l').y - 6.),
+            'n' => dvec2(self.local_at('n').x, self.local_at('n').y - 6.),
             'v' => dvec2(self.local_at('v').x + 7., self.local_at('v').y),
             'w' => dvec2(self.local_at('w').x + 7., self.local_at('w').y),
             'y' => dvec2(self.local_at('c').x, self.local_at('e').y),
             'z' => dvec2(self.local_at('i').x, self.local_at('f').y),
+            'A' => dvec2(VIRTUAL_INFINITY, self.local_at('l').y),
+            'B' => dvec2(VIRTUAL_INFINITY, -VIRTUAL_INFINITY),
+            'C' => dvec2(self.local_at('n').x, -VIRTUAL_INFINITY),
             _ => self.local_at(reference),
         };
         self.workplane.to_world_pos(dvec3(local.x, local.y, 0.))
@@ -126,6 +131,21 @@ impl XYMatrixSketch {
             vec![z, j, v, w, x, q, s, t, a, c, e],
             Some(((z - f).normalize(), (e - y).normalize())),
         ));
+        builder.build()
+    }
+    fn thumbs_cutout(&self) -> Wire {
+        let l = self.world_at('l');
+        let n = self.world_at('n');
+        let aa = self.world_at('A');
+        let bb = self.world_at('B');
+        let cc = self.world_at('C');
+
+        let mut builder = WireBuilder::new();
+        builder.add_edge(&Edge::segment(n, l));
+        builder.add_edge(&Edge::segment(l, aa));
+        builder.add_edge(&Edge::segment(aa, bb));
+        builder.add_edge(&Edge::segment(bb, cc));
+        builder.add_edge(&Edge::segment(cc, n));
         builder.build()
     }
 }
@@ -282,6 +302,18 @@ impl Keyboard {
         let workplane = Workplane::xy();
         XYMatrixSketch::new(&workplane, &self.switch_matrix, &self.thumbs).wire()
     }
+    fn thumbs_xy_cutout_bottom_wire(&self) -> Wire {
+        let workplane = Workplane::xy().transformed(THUMB0_XYZ, THUMB0_ROTATION);
+        XYMatrixSketch::new(&workplane, &self.switch_matrix, &self.thumbs).thumbs_cutout()
+    }
+    fn thumbs_xy_cutout_top_wire(&self) -> Wire {
+        let bottom_right_switch = &self.switch_matrix[4][0];
+        let /*mut*/ workplane = bottom_right_switch.top_plane();
+        //let translation = workplane.to_world_pos(dvec3(0., 0., 100.)); // TODO: calculate rigorously to intersect the top of the topmost
+        // switch
+        //workplane.translate_by(translation);
+        XYMatrixSketch::new(&workplane, &self.switch_matrix, &self.thumbs).thumbs_cutout()
+    }
     fn loft_switches(
         btm: &Switch,
         top: &Switch,
@@ -384,8 +416,14 @@ impl Keyboard {
         for thumb in self.thumbs.iter() {
             shape = thumb.punch(shape, Some(3.), Some(5.), Some(3.), Some(VIRTUAL_INFINITY));
         }
+        let thumbs_cutout: Shape = Solid::loft([
+            self.thumbs_xy_cutout_bottom_wire(),
+            self.thumbs_xy_cutout_top_wire(),
+        ])
+        .into();
         shape = shape
             .subtract(&XZMatrixSketch::new(&self.switch_matrix).shape())
+            .subtract(&thumbs_cutout)
             .into();
         shape
     }
@@ -414,5 +452,15 @@ mod test {
     fn test_xz_matrix_sketch() {
         let shape: Shape = XZMatrixSketch::new(&Keyboard::new().switch_matrix).shape();
         shape.write_stl("test_xz_matrix_sketch.stl").unwrap();
+    }
+    #[test]
+    fn test_thumbs_cutout() {
+        let keyboard = Keyboard::new();
+        let shape: Shape = Solid::loft([
+            keyboard.thumbs_xy_cutout_bottom_wire(),
+            keyboard.thumbs_xy_cutout_top_wire(),
+        ])
+        .into();
+        shape.write_stl("test_thumbs_cutout.stl").unwrap();
     }
 }
