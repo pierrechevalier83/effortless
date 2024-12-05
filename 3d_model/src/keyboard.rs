@@ -377,7 +377,7 @@ impl Keyboard {
         let workplane = Workplane::xy(); //.translated(dvec3(50., 0., 0.));
         ProjectedXYSketch::new(&workplane, &self.switch_matrix).wire()
     }
-    fn loft_switches(btm: &Switch, top: &Switch) -> Shape {
+    fn loft_switches(btm: &Switch, top: &Switch, margin_left: bool, margin_right: bool) -> Shape {
         use Direction::*;
         // Describe a triangle, looking from the left that we can extrude to loft
         let btm_right = btm.coordinate(NegX, PosY, PosZ);
@@ -397,15 +397,28 @@ impl Keyboard {
             .unwrap()
             .to_face();
         let shape: Shape = triangle
-            .extrude(SWITCH_PLATE_XYZ.x * btm.workplane.x_dir())
+            .extrude(
+                (SWITCH_PLATE_XYZ.x + if margin_right { 1.} else { 0. }) * btm.workplane.x_dir(),
+            )
             .into();
-        (&shape)
+        let shape: Shape = (&shape)
             .union(
                 &triangle
-                    .extrude(SWITCH_PLATE_XYZ.x * top.workplane.x_dir())
+                    .extrude(
+                        (SWITCH_PLATE_XYZ.x + if margin_right { 1. } else { 0. })
+                            * top.workplane.x_dir(),
+                    )
                     .into(),
             )
-            .into()
+            .into();
+        if margin_left {
+            (&shape)
+                .union(&triangle.extrude(-1. * top.workplane.x_dir()).into())
+                .union(&triangle.extrude(-1. * btm.workplane.x_dir()).into())
+                .into()
+        } else {
+            shape
+        }
     }
     pub fn shape(&self) -> Shape {
         let mut shape: Shape = Solid::loft([
@@ -414,17 +427,32 @@ impl Keyboard {
             self.top_xy_wire(),
         ])
         .into();
-        for (i, col) in self.switch_matrix.iter().enumerate() {
-            for switch in col.iter(){
-                shape = switch.punch(shape);
+        for (col_index, col) in self.switch_matrix.iter().enumerate() {
+            let margin_left = match col_index {
+                0 | 3 => true,
+                _ => false,
+            };
+            let margin_right = match col_index {
+                0 | 1 => true,
+                _ => false,
+            };
+            for switch in col.iter() {
+                shape = switch.punch(shape, margin_left, margin_right);
             }
-            let loft = Self::loft_switches(&self.switch_matrix[i][0], &self.switch_matrix[i][1]);
+            let loft = Self::loft_switches(
+                &self.switch_matrix[col_index][0],
+                &self.switch_matrix[col_index][1],
+                margin_left,
+                margin_right,
+            );
             shape = shape.subtract(&loft).into();
-            let loft = Self::loft_switches(&self.switch_matrix[i][1], &self.switch_matrix[i][2]);
+            let loft = Self::loft_switches(
+                &self.switch_matrix[col_index][1],
+                &self.switch_matrix[col_index][2],
+                margin_left,
+                margin_right,
+            );
             shape = shape.subtract(&loft).into();
-        }
-        for switch in self.switch_matrix.iter().flatten() {
-            shape = switch.punch(shape);
         }
         shape = shape
             .subtract(&XZSketch::new(&self.switch_matrix).shape())

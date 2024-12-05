@@ -1,6 +1,6 @@
 use crate::params::{
-    SWITCH_FOOTPRINT_HOLES, SWITCH_FOOTPRINT_WIRES, SWITCH_HOLE_XYZ,
-    SWITCH_PLATE_XYZ, VIRTUAL_INFINITY,
+    SWITCH_FOOTPRINT_HOLES, SWITCH_FOOTPRINT_WIRES, SWITCH_HOLE_XYZ, SWITCH_PLATE_XYZ,
+    VIRTUAL_INFINITY,
 };
 use glam::{dvec3, DVec3};
 #[cfg(test)]
@@ -11,12 +11,22 @@ use opencascade::workplane::Workplane;
 use opencascade::Error;
 
 fn centered_rectangle(workplane: Workplane, x: f64, y: f64) -> Wire {
+    centered_rectangle_with_optional_margins(workplane, x, y, None, None)
+}
+
+fn centered_rectangle_with_optional_margins(
+    workplane: Workplane,
+    x: f64,
+    y: f64,
+    margin_left: Option<f64>,
+    margin_right: Option<f64>,
+) -> Wire {
     workplane
         .sketch()
-        .move_to(-x / 2., -y / 2.) // Bottom Left
-        .line_to(-x / 2., y / 2.) // Top Left
-        .line_to(x / 2., y / 2.) // Top Right
-        .line_to(x / 2., -y / 2.) // Bottom Right
+        .move_to(-x / 2. - margin_left.unwrap_or(0.), -y / 2.) // Bottom Left
+        .line_to(-x / 2. - margin_left.unwrap_or(0.), y / 2.) // Top Left
+        .line_to(x / 2. + margin_right.unwrap_or(0.), y / 2.) // Top Right
+        .line_to(x / 2. + margin_right.unwrap_or(0.), -y / 2.) // Bottom Right
         .close()
 }
 
@@ -36,21 +46,23 @@ impl Switch {
         let plate = self
             .top_face()
             .extrude(-SWITCH_PLATE_XYZ.z * self.workplane.normal());
-        self.punch(plate.into())
+        self.punch(plate.into(), false, false)
     }
-    fn all_space_above_the_switch(&self) -> Shape {
-        let shape: Shape = centered_rectangle(
+    fn all_space_above_the_switch(&self, margin_left: bool, margin_right: bool) -> Shape {
+        let shape: Shape = centered_rectangle_with_optional_margins(
             self.workplane.clone(),
-            SWITCH_PLATE_XYZ.x + 1.,
+            SWITCH_PLATE_XYZ.x,
             SWITCH_PLATE_XYZ.y,
+            if margin_left { Some(1.) } else { None },
+            if margin_right { Some(1.) } else { None },
         )
         .to_face()
         .extrude(VIRTUAL_INFINITY * self.workplane.normal())
         .into();
         shape.clean()
     }
-    pub fn punch(&self, shape: Shape) -> Shape {
-        let all_space_above_the_switch = self.all_space_above_the_switch();
+    pub fn punch(&self, shape: Shape, margin_left: bool, margin_right: bool) -> Shape {
+        let all_space_above_the_switch = self.all_space_above_the_switch(margin_left, margin_right);
         let switch_body_cutout =
             centered_rectangle(self.workplane.clone(), SWITCH_HOLE_XYZ.x, SWITCH_HOLE_XYZ.y)
                 .to_face()
