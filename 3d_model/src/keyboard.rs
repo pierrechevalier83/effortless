@@ -98,14 +98,14 @@ impl XYMatrixSketch {
             'j' => dvec2(self.local_at('j').x + 5., self.local_at('j').y),
             'k' => dvec2(self.local_at('k').x + 5., self.local_at('k').y),
             'l' => dvec2(self.local_at('l').x, self.local_at('l').y - 6.),
-            'n' => dvec2(self.local_at('n').x, self.local_at('n').y - 6.),
+            'r' => dvec2(self.local_at('r').x, self.local_at('r').y - 6.),
             'v' => dvec2(self.local_at('v').x + 7., self.local_at('v').y),
             'w' => dvec2(self.local_at('w').x + 7., self.local_at('w').y),
             'y' => dvec2(self.local_at('c').x, self.local_at('e').y),
             'z' => dvec2(self.local_at('i').x, self.local_at('f').y),
             'A' => dvec2(VIRTUAL_INFINITY, self.local_at('l').y),
             'B' => dvec2(VIRTUAL_INFINITY, -VIRTUAL_INFINITY),
-            'C' => dvec2(self.local_at('n').x, -VIRTUAL_INFINITY),
+            'C' => dvec2(self.local_at('r').x, -VIRTUAL_INFINITY),
             _ => self.local_at(reference),
         };
         self.workplane.to_world_pos(dvec3(local.x, local.y, 0.))
@@ -135,18 +135,18 @@ impl XYMatrixSketch {
     }
     fn thumbs_cutout(&self) -> Wire {
         let l = self.world_at('l');
-        let n = self.world_at('n');
+        let r = self.world_at('r');
         let aa = self.world_at('A');
         let bb = self.world_at('B');
         let cc = self.world_at('C');
 
         let mut builder = WireBuilder::new();
-        builder.add_edge(&Edge::segment(n, l));
+        builder.add_edge(&Edge::segment(r, l));
         builder.add_edge(&Edge::segment(l, aa));
         builder.add_edge(&Edge::segment(aa, bb));
         builder.add_edge(&Edge::segment(bb, cc));
-        builder.add_edge(&Edge::segment(cc, n));
-        builder.build()
+        builder.add_edge(&Edge::segment(cc, r));
+        builder.build().fillet(10.)
     }
 }
 
