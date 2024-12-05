@@ -94,11 +94,11 @@ impl XYMatrixSketch {
     }
     fn world_at(&self, reference: char) -> DVec3 {
         let local = match reference {
-            // TODO: parameterize this right margin
+            // TODO: parameterize these margins
             'j' => dvec2(self.local_at('j').x + 5., self.local_at('j').y),
             'k' => dvec2(self.local_at('k').x + 5., self.local_at('k').y),
-            'v' => dvec2(self.local_at('v').x + 5., self.local_at('v').y),
-            'w' => dvec2(self.local_at('w').x + 5., self.local_at('w').y),
+            'v' => dvec2(self.local_at('v').x + 7., self.local_at('v').y),
+            'w' => dvec2(self.local_at('w').x + 7., self.local_at('w').y),
             'y' => dvec2(self.local_at('c').x, self.local_at('e').y),
             'z' => dvec2(self.local_at('i').x, self.local_at('f').y),
             _ => self.local_at(reference),
@@ -111,7 +111,6 @@ impl XYMatrixSketch {
         let e = self.world_at('e');
         let f = self.world_at('f');
         let j = self.world_at('j');
-        let k = self.world_at('k');
         let l = self.world_at('l');
         let m = self.world_at('m');
         let q = self.world_at('q');
@@ -127,13 +126,9 @@ impl XYMatrixSketch {
         let mut builder = WireBuilder::new();
         builder.add_edge(&Edge::segment(e, z));
         builder.add_edge(&Edge::spline_from_points(
-            vec![z, j, k, v, w, x, q],
+            vec![z, j, v, w, x, q],
             Some(((z - f).normalize(), (m - l).normalize())),
         ));
-        //builder.add_edge(&Edge::segment(l, v));
-        //builder.add_edge(&Edge::segment(v, w));
-        //builder.add_edge(&Edge::segment(w, x));
-        //builder.add_edge(&Edge::segment(x, q));
         builder.add_edge(&Edge::spline_from_points(
             vec![q, s, t],
             Some(((r - q).normalize(), (q - t).normalize())),
@@ -399,7 +394,7 @@ impl Keyboard {
             shape = shape.subtract(&loft).into();
         }
         for thumb in self.thumbs.iter() {
-            shape = thumb.punch(shape, Some(5.), Some(5.), Some(5.), Some(VIRTUAL_INFINITY));
+            shape = thumb.punch(shape, Some(3.), Some(5.), Some(3.), Some(VIRTUAL_INFINITY));
         }
         shape = shape
             .subtract(&XZMatrixSketch::new(&self.switch_matrix).shape())
