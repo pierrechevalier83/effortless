@@ -111,10 +111,7 @@ impl XYMatrixSketch {
         let e = self.world_at('e');
         let f = self.world_at('f');
         let j = self.world_at('j');
-        let l = self.world_at('l');
-        let m = self.world_at('m');
         let q = self.world_at('q');
-        let r = self.world_at('r');
         let s = self.world_at('s');
         let t = self.world_at('t');
         let v = self.world_at('v');
@@ -126,30 +123,19 @@ impl XYMatrixSketch {
         let mut builder = WireBuilder::new();
         builder.add_edge(&Edge::segment(e, z));
         builder.add_edge(&Edge::spline_from_points(
-            vec![z, j, v, w, x, q],
-            Some(((z - f).normalize(), (m - l).normalize())),
-        ));
-        builder.add_edge(&Edge::spline_from_points(
-            vec![q, s, t],
-            Some(((r - q).normalize(), (q - t).normalize())),
-        ));
-        builder.add_edge(&Edge::segment(t, a));
-        builder.add_edge(&Edge::spline_from_points(
-            vec![a, c, e],
-            Some(((c - a).normalize(), (e - y).normalize())),
+            vec![z, j, v, w, x, q, s, t, a, c, e],
+            Some(((z - f).normalize(), (e - y).normalize())),
         ));
         builder.build()
     }
 }
 
 // A simple sketch to trim a plane on the left side that we can print from
-//          INF
-// -INF e---f
-//      |   |
-//      |   |
-//      |   |  0,0
-//      |   |
-//      |   a
+//      INF
+// -INF e
+//      |\
+//      | \    0,0
+//      |  \a
 // (z)  |   b
 // ^    |    \
 // |    d-----c
@@ -188,15 +174,17 @@ impl XZMatrixSketch {
                 self.local_at('a').x + 10. * Angle::Degrees(15. + 18.).radians().cos(),
                 0.,
             ),
-            'd' => dvec2(-VIRTUAL_INFINITY, 0.),
-            'e' => dvec2(-VIRTUAL_INFINITY, VIRTUAL_INFINITY),
-            'f' => dvec2(0., VIRTUAL_INFINITY),
+            'd' => dvec2(-VIRTUAL_INFINITY, -VIRTUAL_INFINITY),
+            'e' => dvec2(
+                self.local_at('a').x - VIRTUAL_INFINITY * Angle::Degrees(15. + 18.).radians().cos(),
+                VIRTUAL_INFINITY,
+            ),
             _ => self.local_at(reference),
         };
         self.workplane.to_world_pos(dvec3(local.x, local.y, 0.))
     }
     fn shape(&self) -> Shape {
-        let outline = ['a', 'b', 'c', 'd', 'e', 'f']
+        let outline = ['c', 'd', 'e']
             .into_iter()
             .map(|point| self.world_at(point));
         Wire::from_ordered_points(outline)
