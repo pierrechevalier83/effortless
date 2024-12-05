@@ -6,7 +6,7 @@ use crate::params::{
 use crate::switch::Switch;
 use glam::{dvec2, dvec3, DVec2, DVec3};
 use opencascade::angle::{rvec, Angle};
-use opencascade::primitives::{Compound, Direction, Edge, Shape, Solid, Wire, WireBuilder};
+use opencascade::primitives::{Direction, Edge, Shape, Solid, Wire, WireBuilder};
 use opencascade::workplane::Workplane;
 
 pub struct Keyboard {
@@ -25,7 +25,7 @@ fn project_to_plane(workplane: &Workplane, world_pos: DVec3) -> DVec2 {
 // guarantee that the poinst are co-planar
 // Also, we only focus on the points we use in our actual sketch
 //
-//       u     e-----f          v
+//       y     e-----f          z
 //             |     |
 //       c-----d 2,2 g-----h----i
 //       |                      |
@@ -39,14 +39,16 @@ fn project_to_plane(workplane: &Workplane, world_pos: DVec3) -> DVec2 {
 // |           |     |          |
 // | 0,0 r-----q     n-----m----l
 // |     |
-// t-----s
+// t-----s                   u-----+-----v
+//                           |           |
+//                           x-----------w
 struct XYMatrixSketch {
     workplane: Workplane,
     construction_points: Vec<DVec2>,
 }
 
 impl XYMatrixSketch {
-    fn new(workplane: &Workplane, switch_matrix: &Vec<Vec<Switch>>) -> Self {
+    fn new(workplane: &Workplane, switch_matrix: &Vec<Vec<Switch>>, thumbs: &Vec<Switch>) -> Self {
         use Direction::*;
         // We pick NegZ for all of them, because due to the rotation of the rows, it is always
         // going to be the furthest away, and we wouldn't want to clip the geometry.
@@ -70,10 +72,16 @@ impl XYMatrixSketch {
         let r = switch_matrix[1][0].coordinate(NegX, NegY, NegZ);
         let s = switch_matrix[0][0].coordinate(PosX, NegY, NegZ);
         let t = switch_matrix[0][0].coordinate(NegX, NegY, NegZ);
-        let construction_points = [a, b, c, d, e, f, g, h, i, j, k, l, m, n, o, p, q, r, s, t]
-            .into_iter()
-            .map(|point| project_to_plane(&workplane, point))
-            .collect();
+        let u = thumbs[0].coordinate(NegX, PosY, NegZ);
+        let v = thumbs[1].coordinate(PosX, PosY, NegZ);
+        let w = thumbs[1].coordinate(PosX, NegY, NegZ);
+        let x = thumbs[0].coordinate(NegX, NegY, NegZ);
+        let construction_points = [
+            a, b, c, d, e, f, g, h, i, j, k, l, m, n, o, p, q, r, s, t, u, v, w, x,
+        ]
+        .into_iter()
+        .map(|point| project_to_plane(&workplane, point))
+        .collect();
 
         Self {
             workplane: workplane.clone(),
@@ -89,8 +97,10 @@ impl XYMatrixSketch {
             // TODO: parameterize this right margin
             'j' => dvec2(self.local_at('j').x + 5., self.local_at('j').y),
             'k' => dvec2(self.local_at('k').x + 5., self.local_at('k').y),
-            'u' => dvec2(self.local_at('c').x, self.local_at('e').y),
-            'v' => dvec2(self.local_at('i').x, self.local_at('f').y),
+            'v' => dvec2(self.local_at('v').x + 5., self.local_at('v').y),
+            'w' => dvec2(self.local_at('w').x + 5., self.local_at('w').y),
+            'y' => dvec2(self.local_at('c').x, self.local_at('e').y),
+            'z' => dvec2(self.local_at('i').x, self.local_at('f').y),
             _ => self.local_at(reference),
         };
         self.workplane.to_world_pos(dvec3(local.x, local.y, 0.))
@@ -108,16 +118,22 @@ impl XYMatrixSketch {
         let r = self.world_at('r');
         let s = self.world_at('s');
         let t = self.world_at('t');
-        let u = self.world_at('u');
         let v = self.world_at('v');
+        let w = self.world_at('w');
+        let x = self.world_at('x');
+        let y = self.world_at('y');
+        let z = self.world_at('z');
 
         let mut builder = WireBuilder::new();
-        builder.add_edge(&Edge::segment(e, v));
+        builder.add_edge(&Edge::segment(e, z));
         builder.add_edge(&Edge::spline_from_points(
-            vec![v, j, k, l],
-            Some(((v - f).normalize(), (m - l).normalize())),
+            vec![z, j, k, v, w, x, q],
+            Some(((z - f).normalize(), (m - l).normalize())),
         ));
-        builder.add_edge(&Edge::segment(l, q));
+        //builder.add_edge(&Edge::segment(l, v));
+        //builder.add_edge(&Edge::segment(v, w));
+        //builder.add_edge(&Edge::segment(w, x));
+        //builder.add_edge(&Edge::segment(x, q));
         builder.add_edge(&Edge::spline_from_points(
             vec![q, s, t],
             Some(((r - q).normalize(), (q - t).normalize())),
@@ -125,62 +141,8 @@ impl XYMatrixSketch {
         builder.add_edge(&Edge::segment(t, a));
         builder.add_edge(&Edge::spline_from_points(
             vec![a, c, e],
-            Some(((c - a).normalize(), (e - u).normalize())),
+            Some(((c - a).normalize(), (e - y).normalize())),
         ));
-        builder.build()
-    }
-}
-
-// a-----b-----c
-// |     |     |
-// f-----e-----d
-struct XYThumbsSketch {
-    workplane: Workplane,
-    construction_points: Vec<DVec2>,
-}
-impl XYThumbsSketch {
-    fn new(workplane: &Workplane, thumbs: &Vec<Switch>) -> Self {
-        use Direction::*;
-        // We pick NegZ for all of them, because due to the rotation of the rows, it is always
-        // going to be the furthest away, and we wouldn't want to clip the geometry.
-        let a = thumbs[0].coordinate(NegX, PosY, NegZ);
-        let b = thumbs[0].coordinate(PosX, PosY, NegZ);
-        let c = thumbs[1].coordinate(PosX, PosY, NegZ);
-        let d = thumbs[1].coordinate(PosX, NegY, NegZ);
-        let e = thumbs[0].coordinate(PosX, NegY, NegZ);
-        let f = thumbs[0].coordinate(NegX, NegY, NegZ);
-
-        let construction_points = [a, b, c, d, e, f]
-            .into_iter()
-            .map(|point| project_to_plane(&workplane, point))
-            .collect();
-
-        Self {
-            workplane: workplane.clone(),
-            construction_points,
-        }
-    }
-    fn local_at(&self, reference: char) -> DVec2 {
-        let index = (reference as u8 - 'a' as u8) as usize;
-        self.construction_points[index]
-    }
-    fn world_at(&self, reference: char) -> DVec3 {
-        let local = match reference {
-            _ => self.local_at(reference),
-        };
-        self.workplane.to_world_pos(dvec3(local.x, local.y, 0.))
-    }
-    fn wire(&self) -> Wire {
-        let a = self.world_at('a');
-        let c = self.world_at('c');
-        let d = self.world_at('d');
-        let f = self.world_at('f');
-
-        let mut builder = WireBuilder::new();
-        builder.add_edge(&Edge::segment(a, c));
-        builder.add_edge(&Edge::segment(c, d));
-        builder.add_edge(&Edge::segment(d, f));
-        builder.add_edge(&Edge::segment(f, a));
         builder.build()
     }
 }
@@ -327,29 +289,15 @@ impl Keyboard {
         let translation = workplane.to_world_pos(dvec3(0., 0., 100.)); // TODO: calculate rigorously to intersect the top of the topmost
                                                                        // switch
         workplane.translate_by(translation);
-        XYMatrixSketch::new(&workplane, &self.switch_matrix).wire()
+        XYMatrixSketch::new(&workplane, &self.switch_matrix, &self.thumbs).wire()
     }
     fn mid_xy_matrix_wire(&self) -> Wire {
         let workplane = self.switch_matrix[2][1].bottom_plane();
-        XYMatrixSketch::new(&workplane, &self.switch_matrix).wire()
+        XYMatrixSketch::new(&workplane, &self.switch_matrix, &self.thumbs).wire()
     }
     fn bottom_xy_matrix_wire(&self) -> Wire {
         let workplane = Workplane::xy();
-        XYMatrixSketch::new(&workplane, &self.switch_matrix).wire()
-    }
-    fn top_xy_thumbs_wire(&self) -> Wire {
-        let thumb0 = &self.thumbs[0];
-        let workplane = thumb0.top_plane();
-        XYThumbsSketch::new(&workplane, &self.thumbs).wire()
-    }
-    fn mid_xy_thumbs_wire(&self) -> Wire {
-        let thumb0 = &self.thumbs[0];
-        let workplane = thumb0.bottom_plane();
-        XYThumbsSketch::new(&workplane, &self.thumbs).wire()
-    }
-    fn bottom_xy_thumbs_wire(&self) -> Wire {
-        let workplane = Workplane::xy();
-        XYThumbsSketch::new(&workplane, &self.thumbs).wire()
+        XYMatrixSketch::new(&workplane, &self.switch_matrix, &self.thumbs).wire()
     }
     fn loft_switches(
         btm: &Switch,
@@ -404,7 +352,7 @@ impl Keyboard {
             shape
         }
     }
-    fn matrix_shape(&self) -> Shape {
+    pub fn shape(&self) -> Shape {
         let mut shape: Shape = Solid::loft([
             self.bottom_xy_matrix_wire(),
             self.mid_xy_matrix_wire(),
@@ -450,27 +398,13 @@ impl Keyboard {
             );
             shape = shape.subtract(&loft).into();
         }
+        for thumb in self.thumbs.iter() {
+            shape = thumb.punch(shape, Some(5.), Some(5.), Some(5.), Some(VIRTUAL_INFINITY));
+        }
         shape = shape
             .subtract(&XZMatrixSketch::new(&self.switch_matrix).shape())
-            //.subtract(&YZMatrixSketch::new(&self.switch_matrix).shape())
             .into();
         shape
-    }
-    fn thumbs_shape(&self) -> Shape {
-        let mut shape: Shape = Solid::loft([
-            self.bottom_xy_thumbs_wire(),
-            self.top_xy_thumbs_wire(),
-            self.mid_xy_thumbs_wire(),
-        ])
-        .into();
-        shape = shape.fillet(3.);
-        for thumb in self.thumbs.iter() {
-            shape = thumb.punch(shape, Some(1.), None, Some(10.), None);
-        }
-        shape
-    }
-    pub fn shape(&self) -> Shape {
-        Compound::from_shapes([self.matrix_shape(), self.thumbs_shape()]).into()
     }
 }
 
@@ -485,19 +419,13 @@ mod test {
     }
     #[test]
     fn test_xy_matrix_sketch() {
-        let shape: Shape = XYMatrixSketch::new(&Workplane::xy(), &Keyboard::new().switch_matrix)
-            .wire()
-            .to_face()
-            .into();
+        let keyboard = Keyboard::new();
+        let shape: Shape =
+            XYMatrixSketch::new(&Workplane::xy(), &keyboard.switch_matrix, &keyboard.thumbs)
+                .wire()
+                .to_face()
+                .into();
         shape.write_stl("test_xy_matrix_sketch.stl").unwrap();
-    }
-    #[test]
-    fn test_xy_thumbs_sketch() {
-        let shape: Shape = XYThumbsSketch::new(&Workplane::xy(), &Keyboard::new().thumbs)
-            .wire()
-            .to_face()
-            .into();
-        shape.write_stl("test_xy_thumbs_sketch.stl").unwrap();
     }
     #[test]
     fn test_xz_matrix_sketch() {
