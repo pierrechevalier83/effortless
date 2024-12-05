@@ -1,5 +1,5 @@
 use crate::geometry;
-use crate::params::{COL_ANGLES_Y, NUM_COLS, ROW_ANGLES_X, VIRTUAL_INFINITY};
+use crate::params::{COL_ANGLES_Y, NUM_COLS, ROW_ANGLES_X, SWITCH_PLATE_XYZ, VIRTUAL_INFINITY};
 use crate::switch::Switch;
 use glam::{dvec2, dvec3, DVec2, DVec3};
 use opencascade::angle::{rvec, Angle};
@@ -280,11 +280,18 @@ impl YZSketch {
         self.workplane.to_world_pos(dvec3(local.x, local.y, 0.))
     }
     fn shape(&self) -> Shape {
-        let outline = ['a', 'b', 'c', 'd', 'e', 'f', 'g', 'h']
-            .into_iter()
-            .map(|point| self.world_at(point));
-        Wire::from_ordered_points(outline)
-            .unwrap()
+        let a = self.world_at('a');
+        let d = self.world_at('d');
+        let f = self.world_at('f');
+        let g = self.world_at('g');
+        let h = self.world_at('h');
+        let mut builder = WireBuilder::new();
+        builder.add_edge(&Edge::segment(a, h));
+        builder.add_edge(&Edge::segment(h, g));
+        builder.add_edge(&Edge::segment(g, f));
+        builder.add_edge(&Edge::arc(a, d, f));
+        builder
+            .build()
             .to_face()
             .extrude(self.workplane.normal() * VIRTUAL_INFINITY)
             .into()
@@ -370,6 +377,36 @@ impl Keyboard {
         let workplane = Workplane::xy(); //.translated(dvec3(50., 0., 0.));
         ProjectedXYSketch::new(&workplane, &self.switch_matrix).wire()
     }
+    fn loft_switches(btm: &Switch, top: &Switch) -> Shape {
+        use Direction::*;
+        // Describe a triangle, looking from the left that we can extrude to loft
+        let btm_right = btm.coordinate(NegX, PosY, PosZ);
+        let btm_left = top.coordinate(NegX, NegY, PosZ);
+        let top_right = btm.to_world_pos(dvec3(
+            -SWITCH_PLATE_XYZ.x / 2.,
+            SWITCH_PLATE_XYZ.y / 2.,
+            VIRTUAL_INFINITY,
+        ));
+        let top_left = top.to_world_pos(dvec3(
+            -SWITCH_PLATE_XYZ.x / 2.,
+            -SWITCH_PLATE_XYZ.y / 2.,
+            VIRTUAL_INFINITY,
+        ));
+        let top_pt = (top_right + top_left) / 2.;
+        let triangle = Wire::from_ordered_points([btm_left, btm_right, top_pt])
+            .unwrap()
+            .to_face();
+        let shape: Shape = triangle
+            .extrude(SWITCH_PLATE_XYZ.x * btm.workplane.x_dir())
+            .into();
+        (&shape)
+            .union(
+                &triangle
+                    .extrude(SWITCH_PLATE_XYZ.x * top.workplane.x_dir())
+                    .into(),
+            )
+            .into()
+    }
     pub fn shape(&self) -> Shape {
         let mut shape: Shape = Solid::loft([
             self.bottom_xy_wire(),
@@ -377,6 +414,15 @@ impl Keyboard {
             self.top_xy_wire(),
         ])
         .into();
+        for (i, col) in self.switch_matrix.iter().enumerate() {
+            for switch in col.iter(){
+                shape = switch.punch(shape);
+            }
+            let loft = Self::loft_switches(&self.switch_matrix[i][0], &self.switch_matrix[i][1]);
+            shape = shape.subtract(&loft).into();
+            let loft = Self::loft_switches(&self.switch_matrix[i][1], &self.switch_matrix[i][2]);
+            shape = shape.subtract(&loft).into();
+        }
         for switch in self.switch_matrix.iter().flatten() {
             shape = switch.punch(shape);
         }

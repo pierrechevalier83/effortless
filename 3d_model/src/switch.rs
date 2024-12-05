@@ -1,6 +1,6 @@
 use crate::params::{
-    SWITCH_FOOTPRINT_HOLES, SWITCH_FOOTPRINT_WIRES, SWITCH_HOLE_XYZ, SWITCH_PLATE_XYZ,
-    VIRTUAL_INFINITY,
+    SWITCH_FOOTPRINT_HOLES, SWITCH_FOOTPRINT_WIRES, SWITCH_HOLE_XYZ,
+    SWITCH_PLATE_XYZ, VIRTUAL_INFINITY,
 };
 use glam::{dvec3, DVec3};
 #[cfg(test)]
@@ -21,7 +21,7 @@ fn centered_rectangle(workplane: Workplane, x: f64, y: f64) -> Wire {
 }
 
 pub struct Switch {
-    workplane: Workplane,
+    pub workplane: Workplane,
 }
 
 impl Switch {
@@ -38,15 +38,19 @@ impl Switch {
             .extrude(-SWITCH_PLATE_XYZ.z * self.workplane.normal());
         self.punch(plate.into())
     }
-    pub fn punch(&self, shape: Shape) -> Shape {
-        let all_space_above_the_switch = centered_rectangle(
+    fn all_space_above_the_switch(&self) -> Shape {
+        let shape: Shape = centered_rectangle(
             self.workplane.clone(),
             SWITCH_PLATE_XYZ.x + 1.,
-            SWITCH_PLATE_XYZ.y + 3.2, // TODO: calculate the distance to the next switch and such
+            SWITCH_PLATE_XYZ.y,
         )
         .to_face()
         .extrude(VIRTUAL_INFINITY * self.workplane.normal())
         .into();
+        shape.clean()
+    }
+    pub fn punch(&self, shape: Shape) -> Shape {
+        let all_space_above_the_switch = self.all_space_above_the_switch();
         let switch_body_cutout =
             centered_rectangle(self.workplane.clone(), SWITCH_HOLE_XYZ.x, SWITCH_HOLE_XYZ.y)
                 .to_face()
