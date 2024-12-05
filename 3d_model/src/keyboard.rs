@@ -40,12 +40,12 @@ fn project_to_plane(workplane: &Workplane, world_pos: DVec3) -> DVec2 {
 // | 0,0 r-----q     n-----m----l
 // |     |
 // t-----s
-struct ProjectedXYSketch {
+struct XYMatrixSketch {
     workplane: Workplane,
     construction_points: Vec<DVec2>,
 }
 
-impl ProjectedXYSketch {
+impl XYMatrixSketch {
     fn new(workplane: &Workplane, switch_matrix: &Vec<Vec<Switch>>) -> Self {
         use Direction::*;
         // We pick NegZ for all of them, because due to the rotation of the rows, it is always
@@ -142,12 +142,12 @@ impl ProjectedXYSketch {
 // ^    |    \          f-----g
 // |    n-----o
 // o--> (x)
-struct XZSketch {
+struct XZMatrixSketch {
     workplane: Workplane,
     construction_points: Vec<DVec2>,
 }
 
-impl XZSketch {
+impl XZMatrixSketch {
     fn new(switch_matrix: &Vec<Vec<Switch>>) -> Self {
         let workplane = Workplane::xz().translated(dvec3(0., 0., -VIRTUAL_INFINITY / 2.));
         use Direction::*;
@@ -216,12 +216,12 @@ impl XZSketch {
 //  ^ (z)
 //  |
 //  o--> (y)
-struct YZSketch {
+struct YZMatrixSketch {
     workplane: Workplane,
     construction_points: Vec<DVec2>,
 }
 
-impl YZSketch {
+impl YZMatrixSketch {
     fn new(switch_matrix: &Vec<Vec<Switch>>) -> Self {
         let workplane = Workplane::yz();
         use Direction::*;
@@ -348,16 +348,16 @@ impl Keyboard {
         let translation = workplane.to_world_pos(dvec3(0., 0., 100.)); // TODO: calculate rigorously to intersect the top of the topmost
                                                                        // switch
         workplane.translate_by(translation);
-        ProjectedXYSketch::new(&workplane, &self.switch_matrix).wire()
+        XYMatrixSketch::new(&workplane, &self.switch_matrix).wire()
     }
     fn mid_xy_wire(&self) -> Wire {
         let workplane = self.switch_matrix[2][1].bottom_plane();
-        ProjectedXYSketch::new(&workplane, &self.switch_matrix).wire()
+        XYMatrixSketch::new(&workplane, &self.switch_matrix).wire()
     }
     fn bottom_xy_wire(&self) -> Wire {
         // TODO: calculate for good angle for 3d printng on this edge
         let workplane = Workplane::xy(); //.translated(dvec3(50., 0., 0.));
-        ProjectedXYSketch::new(&workplane, &self.switch_matrix).wire()
+        XYMatrixSketch::new(&workplane, &self.switch_matrix).wire()
     }
     fn loft_switches(btm: &Switch, top: &Switch, margin_left: bool, margin_right: bool) -> Shape {
         use Direction::*;
@@ -437,8 +437,8 @@ impl Keyboard {
             shape = shape.subtract(&loft).into();
         }
         shape = shape
-            .subtract(&XZSketch::new(&self.switch_matrix).shape())
-            .subtract(&YZSketch::new(&self.switch_matrix).shape())
+            .subtract(&XZMatrixSketch::new(&self.switch_matrix).shape())
+            .subtract(&YZMatrixSketch::new(&self.switch_matrix).shape())
             .into();
         shape
     }
@@ -454,21 +454,21 @@ mod test {
         shape.write_stl("test_keyboard_shape.stl").unwrap();
     }
     #[test]
-    fn test_xy_sketch() {
-        let shape: Shape = ProjectedXYSketch::new(&Workplane::xy(), &Keyboard::new().switch_matrix)
+    fn test_xy_matrix_sketch() {
+        let shape: Shape = XYMatrixSketch::new(&Workplane::xy(), &Keyboard::new().switch_matrix)
             .wire()
             .to_face()
             .into();
-        shape.write_stl("test_xy_sketch.stl").unwrap();
+        shape.write_stl("test_xy_matrix_sketch.stl").unwrap();
     }
     #[test]
-    fn test_yz_sketch() {
-        let shape: Shape = YZSketch::new(&Keyboard::new().switch_matrix).shape();
-        shape.write_stl("test_yz_sketch.stl").unwrap();
+    fn test_yz_matrix_sketch() {
+        let shape: Shape = YZMatrixSketch::new(&Keyboard::new().switch_matrix).shape();
+        shape.write_stl("test_yz_matrix_sketch.stl").unwrap();
     }
     #[test]
-    fn test_xz_sketch() {
-        let shape: Shape = XZSketch::new(&Keyboard::new().switch_matrix).shape();
-        shape.write_stl("test_xz_sketch.stl").unwrap();
+    fn test_xz_matrix_sketch() {
+        let shape: Shape = XZMatrixSketch::new(&Keyboard::new().switch_matrix).shape();
+        shape.write_stl("test_xz_matrix_sketch.stl").unwrap();
     }
 }
