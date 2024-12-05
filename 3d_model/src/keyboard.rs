@@ -1,5 +1,8 @@
 use crate::geometry;
-use crate::params::{COL_ANGLES_Y, NUM_COLS, ROW_ANGLES_X, SWITCH_PLATE_XYZ, VIRTUAL_INFINITY};
+use crate::params::{
+    COL_ANGLES_Y, NUM_COLS, ROW_ANGLES_X, SWITCH_PLATE_XYZ, THUMB0_ROTATION, THUMB0_XYZ,
+    VIRTUAL_INFINITY,
+};
 use crate::switch::Switch;
 use glam::{dvec2, dvec3, DVec2, DVec3};
 use opencascade::angle::{rvec, Angle};
@@ -8,7 +11,7 @@ use opencascade::workplane::Workplane;
 
 pub struct Keyboard {
     switch_matrix: Vec<Vec<Switch>>,
-    // TODO: thumbs
+    thumbs: Vec<Switch>,
 }
 
 fn project_to_plane(workplane: &Workplane, world_pos: DVec3) -> DVec2 {
@@ -16,63 +19,6 @@ fn project_to_plane(workplane: &Workplane, world_pos: DVec3) -> DVec2 {
     // Drop the z dimension in the local coordinates of that plane, therefore projecting to the
     // plane
     dvec2(point_in_plane.x, point_in_plane.y)
-}
-
-// I'm hardcoding the fact there is no stagger between the index columns for now.
-// It's already hard-coded in other places and keeps things a bit simpler.
-// Why would anyone stagger the same finger and make chording feel wrong anyway?
-//
-//             e-----f
-//             |     |
-//       c-----d 2,2 g-----h----i
-//       |                      |
-// a-----b 1,2         3,2  4,2 |
-// |                            j
-// | 0,2        2,1             |
-// |       1,1         3,1  4,1 |
-// |                            k
-// | 0,1         2,0            |
-// |       1,0 p-----o 3,0  4,0 |
-// |           |     |          |
-// | 0,0 r-----q     n-----m----l
-// |     |
-// t-----s
-struct XYSketchConstructionPoints([DVec3; 20]);
-
-impl XYSketchConstructionPoints {
-    fn new(switch_matrix: &Vec<Vec<Switch>>) -> Self {
-        use Direction::*;
-        // We pick NegZ for all of them, because due to the rotation of the rows, it is always
-        // going to be the furthest away, and we wouldn't want to clip the geometry.
-        let a = switch_matrix[0][2].coordinate(NegX, PosY, NegZ);
-        let b = switch_matrix[0][2].coordinate(PosX, PosY, NegZ);
-        let c = switch_matrix[1][2].coordinate(NegX, PosY, NegZ);
-        let d = switch_matrix[1][2].coordinate(PosX, PosY, NegZ);
-        let e = switch_matrix[2][2].coordinate(NegX, PosY, NegZ);
-        let f = switch_matrix[2][2].coordinate(PosX, PosY, NegZ);
-        let g = switch_matrix[3][2].coordinate(NegX, PosY, NegZ);
-        let h = switch_matrix[3][2].coordinate(PosX, PosY, NegZ);
-        let i = switch_matrix[4][2].coordinate(PosX, PosY, NegZ);
-        let j = switch_matrix[4][1].coordinate(PosX, PosY, NegZ);
-        let k = switch_matrix[4][1].coordinate(PosX, NegY, NegZ);
-        let l = switch_matrix[4][0].coordinate(PosX, NegY, NegZ);
-        let m = switch_matrix[3][0].coordinate(PosX, NegY, NegZ);
-        let n = switch_matrix[3][0].coordinate(NegX, NegY, NegZ);
-        let o = switch_matrix[2][0].coordinate(PosX, NegY, NegZ);
-        let p = switch_matrix[2][0].coordinate(NegX, NegY, NegZ);
-        let q = switch_matrix[1][0].coordinate(PosX, NegY, NegZ);
-        let r = switch_matrix[1][0].coordinate(NegX, NegY, NegZ);
-        let s = switch_matrix[0][0].coordinate(PosX, NegY, NegZ);
-        let t = switch_matrix[0][0].coordinate(NegX, NegY, NegZ);
-        Self([a, b, c, d, e, f, g, h, i, j, k, l, m, n, o, p, q, r, s, t])
-    }
-    fn project_to_plane(&self, workplane: &Workplane) -> [DVec2; 20] {
-        let mut projection = [DVec2::ZERO; 20];
-        for (index, point) in self.0.iter().enumerate() {
-            projection[index] = project_to_plane(&workplane, *point);
-        }
-        projection
-    }
 }
 
 // This is only created by projection, so we have the additional
@@ -96,15 +42,42 @@ impl XYSketchConstructionPoints {
 // t-----s
 struct ProjectedXYSketch {
     workplane: Workplane,
-    construction_points: [DVec2; 20],
+    construction_points: Vec<DVec2>,
 }
 
 impl ProjectedXYSketch {
     fn new(workplane: &Workplane, switch_matrix: &Vec<Vec<Switch>>) -> Self {
+        use Direction::*;
+        // We pick NegZ for all of them, because due to the rotation of the rows, it is always
+        // going to be the furthest away, and we wouldn't want to clip the geometry.
+        let a = switch_matrix[0][2].coordinate(NegX, PosY, NegZ);
+        let b = switch_matrix[0][2].coordinate(PosX, PosY, NegZ);
+        let c = switch_matrix[1][2].coordinate(NegX, PosY, NegZ);
+        let d = switch_matrix[1][2].coordinate(PosX, PosY, NegZ);
+        let e = switch_matrix[2][2].coordinate(NegX, PosY, NegZ);
+        let f = switch_matrix[2][2].coordinate(PosX, PosY, NegZ);
+        let g = switch_matrix[3][2].coordinate(NegX, PosY, NegZ);
+        let h = switch_matrix[3][2].coordinate(PosX, PosY, NegZ);
+        let i = switch_matrix[4][2].coordinate(PosX, PosY, NegZ);
+        let j = switch_matrix[4][1].coordinate(PosX, PosY, NegZ);
+        let k = switch_matrix[4][1].coordinate(PosX, NegY, NegZ);
+        let l = switch_matrix[4][0].coordinate(PosX, NegY, NegZ);
+        let m = switch_matrix[3][0].coordinate(PosX, NegY, NegZ);
+        let n = switch_matrix[3][0].coordinate(NegX, NegY, NegZ);
+        let o = switch_matrix[2][0].coordinate(PosX, NegY, NegZ);
+        let p = switch_matrix[2][0].coordinate(NegX, NegY, NegZ);
+        let q = switch_matrix[1][0].coordinate(PosX, NegY, NegZ);
+        let r = switch_matrix[1][0].coordinate(NegX, NegY, NegZ);
+        let s = switch_matrix[0][0].coordinate(PosX, NegY, NegZ);
+        let t = switch_matrix[0][0].coordinate(NegX, NegY, NegZ);
+        let construction_points = [a, b, c, d, e, f, g, h, i, j, k, l, m, n, o, p, q, r, s, t]
+            .into_iter()
+            .map(|point| project_to_plane(&workplane, point))
+            .collect();
+
         Self {
             workplane: workplane.clone(),
-            construction_points: XYSketchConstructionPoints::new(switch_matrix)
-                .project_to_plane(&workplane),
+            construction_points,
         }
     }
     fn local_at(&self, reference: char) -> DVec2 {
@@ -331,7 +304,6 @@ impl Keyboard {
                         Angle::Degrees(
                             COL_ANGLES_Y[col].degrees() * ROW_ANGLES_X[2].radians().sin(),
                         ),
-                        //Angle::Degrees(-COL_ANGLES_Y[col].degrees()),
                     );
                     let top_plane =
                         Workplane::xy().transformed(top_switch_pos, top_switch_rotation);
@@ -355,7 +327,17 @@ impl Keyboard {
                     let bottom_switch = Switch::new(bottom_plane);
                     vec![bottom_switch, mid_switch, top_switch]
                 })
-                .collect::<Vec<_>>(),
+                .collect(),
+            thumbs: {
+                let thumbs_rotation = THUMB0_ROTATION;
+                let thumb0_position = THUMB0_XYZ;
+                let workplane0 = Workplane::xy().transformed(thumb0_position, thumbs_rotation);
+                let thumb0 = Switch::new(workplane0);
+                let thumb1_position = thumb0.to_world_pos(dvec3(0., SWITCH_PLATE_XYZ.y, 0.));
+                let workplane1 = Workplane::xy().transformed(thumb1_position, thumbs_rotation);
+                let thumb1 = Switch::new(workplane1);
+                vec![thumb0, thumb1]
+            },
         }
     }
     /// This is the shape we want around the keyboard in the XY axix, projected to the plane that
@@ -398,7 +380,7 @@ impl Keyboard {
             .to_face();
         let shape: Shape = triangle
             .extrude(
-                (SWITCH_PLATE_XYZ.x + if margin_right { 1.} else { 0. }) * btm.workplane.x_dir(),
+                (SWITCH_PLATE_XYZ.x + if margin_right { 1. } else { 0. }) * btm.workplane.x_dir(),
             )
             .into();
         let shape: Shape = (&shape)
