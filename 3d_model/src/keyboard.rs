@@ -377,11 +377,11 @@ impl Keyboard {
         for (col_index, col) in self.switch_matrix.iter().enumerate() {
             let margin_left = match col_index {
                 0 => Some(VIRTUAL_INFINITY),
-                3 | 4 => Some(1.),
+                2 | 3 | 4 => Some(1.),
                 _ => None,
             };
             let margin_right = match col_index {
-                0 | 1 => Some(1.),
+                0 | 1 | 2 => Some(1.),
                 4 => Some(VIRTUAL_INFINITY),
                 _ => None,
             };
