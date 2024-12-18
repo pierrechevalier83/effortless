@@ -108,7 +108,10 @@ impl XYMatrixSketch {
             'C' => dvec2(self.local_at('r').x, -VIRTUAL_INFINITY),
             'D' => dvec2(self.local_at('e').x, self.local_at('e').y - 3.),
             'E' => dvec2(self.local_at('e').x + 50.2, self.local_at('e').y - 3.),
-            'F' => dvec2(self.local_at('e').x + 50.2, self.local_at('e').y - 50.2 - 3.),
+            'F' => dvec2(
+                self.local_at('e').x + 50.2,
+                self.local_at('e').y - 50.2 - 3.,
+            ),
             'G' => dvec2(self.local_at('e').x, self.local_at('e').y - 50.2 - 3.),
             'H' => dvec2(
                 self.local_at('e').x + 50.2 / 2. - 9.2,
@@ -125,6 +128,22 @@ impl XYMatrixSketch {
             'K' => dvec2(
                 self.local_at('e').x + 50.2 / 2. - 9.2,
                 self.local_at('e').y - 23.7 - 3.,
+            ),
+            'L' => dvec2(
+                self.local_at('e').x + 42.7 + 0.1 - 6.5 / 2.,
+                self.local_at('e').y - 3.,
+            ),
+            'M' => dvec2(
+                self.local_at('e').x + 42.7 + 0.1 + 6.5 / 2.,
+                self.local_at('e').y - 3.,
+            ),
+            'N' => dvec2(
+                self.local_at('e').x + 42.7 + 0.1 + 6.5 / 2.,
+                self.local_at('e').y - 12.4 - 3.,
+            ),
+            'O' => dvec2(
+                self.local_at('e').x + 42.7 + 0.1 - 6.5 / 2.,
+                self.local_at('e').y - 12.4 - 3.,
             ),
             _ => self.local_at(reference),
         };
@@ -183,9 +202,17 @@ impl XYMatrixSketch {
         let rp2040: Shape = Wire::from_ordered_points(rp2040_outline)
             .unwrap()
             .to_face()
-            .extrude(self.workplane.normal() * (1.8 + 2.5 + 1.8 + 3.0 + 0.2))
+            .extrude(self.workplane.normal() * (1.8 + 0.2 + 2.5 + 1.8 + 3.0 + 0.2))
             .into();
-        Shape::union(&pcb, &rp2040).into()
+        let jack_outline = ['L', 'M', 'N', 'O']
+            .into_iter()
+            .map(|point| self.world_at(point));
+        let jack: Shape = Wire::from_ordered_points(jack_outline)
+            .unwrap()
+            .to_face()
+            .extrude(self.workplane.normal() * (1.8 + 0.2 + 5.0 + 0.2))
+            .into();
+        Shape::union(&pcb, &rp2040).union(&jack).into()
     }
 }
 
