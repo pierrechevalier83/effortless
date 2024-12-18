@@ -106,6 +106,9 @@ impl XYMatrixSketch {
             'A' => dvec2(VIRTUAL_INFINITY, self.local_at('l').y),
             'B' => dvec2(VIRTUAL_INFINITY, -VIRTUAL_INFINITY),
             'C' => dvec2(self.local_at('r').x, -VIRTUAL_INFINITY),
+            'D' => dvec2(self.local_at('e').x + 50.2, self.local_at('e').y),
+            'E' => dvec2(self.local_at('e').x + 50.2, self.local_at('e').y - 50.2),
+            'F' => dvec2(self.local_at('e').x, self.local_at('e').y - 50.2),
             _ => self.local_at(reference),
         };
         self.workplane.to_world_pos(dvec3(local.x, local.y, 0.))
@@ -147,6 +150,17 @@ impl XYMatrixSketch {
         builder.add_edge(&Edge::segment(bb, cc));
         builder.add_edge(&Edge::segment(cc, r));
         builder.build().fillet(10.)
+    }
+    fn electronics_cutout(&self) -> Shape {
+        let pcb_outline = ['e', 'D', 'E', 'F']
+            .into_iter()
+            .map(|point| self.world_at(point));
+
+        Wire::from_ordered_points(pcb_outline)
+            .unwrap()
+            .to_face()
+            .extrude(self.workplane.normal() * 1.8 + 0.2)
+            .into()
     }
 }
 
@@ -314,6 +328,10 @@ impl Keyboard {
         //workplane.translate_by(translation);
         XYMatrixSketch::new(&workplane, &self.switch_matrix, &self.thumbs).thumbs_cutout()
     }
+    fn electronics_cutout(&self) -> Shape {
+        let workplane = Workplane::xy();
+        XYMatrixSketch::new(&workplane, &self.switch_matrix, &self.thumbs).electronics_cutout()
+    }
     fn loft_switches(
         btm: &Switch,
         top: &Switch,
@@ -424,6 +442,7 @@ impl Keyboard {
         shape = shape
             .subtract(&XZMatrixSketch::new(&self.switch_matrix).shape())
             .subtract(&thumbs_cutout)
+            .subtract(&self.electronics_cutout())
             .into();
         shape
     }
