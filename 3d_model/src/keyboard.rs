@@ -106,9 +106,26 @@ impl XYMatrixSketch {
             'A' => dvec2(VIRTUAL_INFINITY, self.local_at('l').y),
             'B' => dvec2(VIRTUAL_INFINITY, -VIRTUAL_INFINITY),
             'C' => dvec2(self.local_at('r').x, -VIRTUAL_INFINITY),
-            'D' => dvec2(self.local_at('e').x + 50.2, self.local_at('e').y),
-            'E' => dvec2(self.local_at('e').x + 50.2, self.local_at('e').y - 50.2),
-            'F' => dvec2(self.local_at('e').x, self.local_at('e').y - 50.2),
+            'D' => dvec2(self.local_at('e').x, self.local_at('e').y - 3.),
+            'E' => dvec2(self.local_at('e').x + 50.2, self.local_at('e').y - 3.),
+            'F' => dvec2(self.local_at('e').x + 50.2, self.local_at('e').y - 50.2 - 3.),
+            'G' => dvec2(self.local_at('e').x, self.local_at('e').y - 50.2 - 3.),
+            'H' => dvec2(
+                self.local_at('e').x + 50.2 / 2. - 9.2,
+                self.local_at('e').y - 3.,
+            ),
+            'I' => dvec2(
+                self.local_at('e').x + 50.2 / 2. + 9.2,
+                self.local_at('e').y - 3.,
+            ),
+            'J' => dvec2(
+                self.local_at('e').x + 50.2 / 2. + 9.2,
+                self.local_at('e').y - 23.7 - 3.,
+            ),
+            'K' => dvec2(
+                self.local_at('e').x + 50.2 / 2. - 9.2,
+                self.local_at('e').y - 23.7 - 3.,
+            ),
             _ => self.local_at(reference),
         };
         self.workplane.to_world_pos(dvec3(local.x, local.y, 0.))
@@ -152,15 +169,23 @@ impl XYMatrixSketch {
         builder.build().fillet(10.)
     }
     fn electronics_cutout(&self) -> Shape {
-        let pcb_outline = ['e', 'D', 'E', 'F']
+        let pcb_outline = ['D', 'E', 'F', 'G']
             .into_iter()
             .map(|point| self.world_at(point));
-
-        Wire::from_ordered_points(pcb_outline)
+        let pcb: Shape = Wire::from_ordered_points(pcb_outline)
             .unwrap()
             .to_face()
-            .extrude(self.workplane.normal() * 1.8 + 0.2)
-            .into()
+            .extrude(self.workplane.normal() * (1.8 + 0.2))
+            .into();
+        let rp2040_outline = ['H', 'I', 'J', 'K']
+            .into_iter()
+            .map(|point| self.world_at(point));
+        let rp2040: Shape = Wire::from_ordered_points(rp2040_outline)
+            .unwrap()
+            .to_face()
+            .extrude(self.workplane.normal() * (1.8 + 2.5 + 1.8 + 3.0 + 0.2))
+            .into();
+        Shape::union(&pcb, &rp2040).into()
     }
 }
 
