@@ -123,11 +123,11 @@ impl XYMatrixSketch {
             ),
             'J' => dvec2(
                 self.local_at('e').x + 50.2 / 2. + 9.2,
-                self.local_at('e').y - 23.7 - 3.,
+                self.local_at('e').y - 27.5 - 3.,
             ),
             'K' => dvec2(
                 self.local_at('e').x + 50.2 / 2. - 9.2,
-                self.local_at('e').y - 23.7 - 3.,
+                self.local_at('e').y - 27.5 - 3.,
             ),
             'L' => dvec2(
                 self.local_at('e').x + 42.7 + 0.1 - 6.5 / 2.,
@@ -139,11 +139,11 @@ impl XYMatrixSketch {
             ),
             'N' => dvec2(
                 self.local_at('e').x + 42.7 + 0.1 + 6.5 / 2.,
-                self.local_at('e').y - 12.4 - 3.,
+                self.local_at('e').y - 16. - 3.,
             ),
             'O' => dvec2(
                 self.local_at('e').x + 42.7 + 0.1 - 6.5 / 2.,
-                self.local_at('e').y - 12.4 - 3.,
+                self.local_at('e').y - 16. - 3.,
             ),
             _ => self.local_at(reference),
         };
