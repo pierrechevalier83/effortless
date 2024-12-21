@@ -466,7 +466,7 @@ impl Keyboard {
             shape
         }
     }
-    fn switch_base_pos(&self, col: usize, row: usize, is_left: bool) -> DVec3 {
+    fn switch_base_pos(&self, col: usize, row: isize, is_left: bool) -> DVec3 {
         let coord_2_2 =
             self.switch_matrix[2][2].coordinate(Direction::NegX, Direction::PosY, Direction::NegZ);
         dvec3(coord_2_2.x, coord_2_2.y, 1.8 + 0.2)
@@ -492,9 +492,9 @@ impl Keyboard {
                 (0..NUM_ROWS)
                     .map(|row| {
                         let switch_top_left = self.switch_matrix[col][row].left_wire_coord();
-                        let switch_bottom_left = self.switch_base_pos(col, row, true);
+                        let switch_bottom_left = self.switch_base_pos(col, row as isize, true);
                         let switch_top_right = self.switch_matrix[col][row].right_wire_coord();
-                        let switch_bottom_right = self.switch_base_pos(col, row, false);
+                        let switch_bottom_right = self.switch_base_pos(col, row as isize, false);
 
                         let mut above_bottom_left = switch_bottom_left.clone();
                         above_bottom_left.z += 2. + 6.5 * col as f64;
@@ -573,7 +573,64 @@ impl Keyboard {
         for shape in shapes {
             union = union.union(&shape).into();
         }
+        let thumb0_base_left = self.switch_base_pos(3, -1, true);
+        let mut thumb0_above_base_left = thumb0_base_left.clone();
+        thumb0_above_base_left.z += 2.;
+        let thumb0_top_left = self.thumbs[0].left_wire_coord();
+        let thumb0_base_right = self.switch_base_pos(3, -1, false);
+        let mut thumb0_above_base_right = thumb0_base_right.clone();
+        thumb0_above_base_right.z += 2.;
+        let thumb0_top_right = self.thumbs[0].right_wire_coord();
+        let thumb1_base_left = self.switch_base_pos(4, -1, true);
+        let mut thumb1_above_base_left = thumb1_base_left.clone();
+        thumb1_above_base_left.z += 2.;
+        let thumb1_top_left = self.thumbs[1].left_wire_coord();
+        let thumb1_base_right = self.switch_base_pos(4, -1, false);
+        let mut thumb1_above_base_right = thumb1_base_right.clone();
+        thumb1_above_base_right.z += 2.;
+        let thumb1_top_right = self.thumbs[1].right_wire_coord();
         union
+            .union(&Self::cylinder_connecting_two_points(
+                thumb0_base_left,
+                thumb0_above_base_left,
+                wire_radius,
+            ))
+            .union(&Self::cylinder_connecting_two_points(
+                thumb0_above_base_left,
+                thumb0_top_left,
+                wire_radius,
+            ))
+            .union(&Self::cylinder_connecting_two_points(
+                thumb0_base_right,
+                thumb0_above_base_right,
+                wire_radius,
+            ))
+            .union(&Self::cylinder_connecting_two_points(
+                thumb0_above_base_right,
+                thumb0_top_right,
+                wire_radius,
+            ))
+            .union(&Self::cylinder_connecting_two_points(
+                thumb1_base_left,
+                thumb1_above_base_left,
+                wire_radius,
+            ))
+            .union(&Self::cylinder_connecting_two_points(
+                thumb1_above_base_left,
+                thumb1_top_left,
+                wire_radius,
+            ))
+            .union(&Self::cylinder_connecting_two_points(
+                thumb1_base_right,
+                thumb1_above_base_right,
+                wire_radius,
+            ))
+            .union(&Self::cylinder_connecting_two_points(
+                thumb1_above_base_right,
+                thumb1_top_right,
+                wire_radius,
+            ))
+            .into()
     }
     pub fn shape(&self) -> Shape {
         let mut shape: Shape = Solid::loft([
