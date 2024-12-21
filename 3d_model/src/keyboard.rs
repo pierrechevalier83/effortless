@@ -113,6 +113,7 @@ impl XYMatrixSketch {
                 self.local_at('e').y - 50.2 - 3.,
             ),
             'G' => dvec2(self.local_at('e').x, self.local_at('e').y - 50.2 - 3.),
+            // RP2040
             'H' => dvec2(
                 self.local_at('e').x + 50.2 / 2. - 9.2,
                 self.local_at('e').y - 3.,
@@ -129,6 +130,7 @@ impl XYMatrixSketch {
                 self.local_at('e').x + 50.2 / 2. - 9.2,
                 self.local_at('e').y - 27.5 - 3.,
             ),
+            // Jack
             'L' => dvec2(
                 self.local_at('e').x + 42.7 + 0.1 - 6.5 / 2.,
                 self.local_at('e').y - 3.,
@@ -202,7 +204,7 @@ impl XYMatrixSketch {
         let rp2040: Shape = Wire::from_ordered_points(rp2040_outline)
             .unwrap()
             .to_face()
-            .extrude(self.workplane.normal() * (1.8 + 0.2 + 2.5 + 1.8 + 3.0 + 0.2))
+            .extrude(self.workplane.normal() * (1.8 + 0.2 + 2.5 + 1.8 + 7.0 + 0.2))
             .into();
         let jack_outline = ['L', 'M', 'N', 'O']
             .into_iter()
@@ -218,13 +220,13 @@ impl XYMatrixSketch {
 
 // A simple sketch to trim a plane on the left side that we can print from
 //      INF
-// -INF e
+// -INF C
 //      |\
 //      | \    0,0
 //      |  \a
 // (z)  |   b
 // ^    |    \
-// |    d-----c
+// |    B-----A
 // o--> (x)
 struct XZMatrixSketch {
     workplane: Workplane,
@@ -232,14 +234,17 @@ struct XZMatrixSketch {
 }
 
 impl XZMatrixSketch {
-    fn new(switch_matrix: &Vec<Vec<Switch>>) -> Self {
-        let workplane = Workplane::xz().translated(dvec3(0., 0., -VIRTUAL_INFINITY / 2.));
+    fn new(switch_matrix: &Vec<Vec<Switch>>, neg_y_translation: f64) -> Self {
+        let workplane = Workplane::xz().translated(dvec3(0., 0., neg_y_translation));
         use Direction::*;
         // We pick PosZ for all of them, because we wouldn't want to trim our switch footprint,
         // now. Would we?
         let a = switch_matrix[0][0].coordinate(NegX, NegY, PosZ);
         let b = switch_matrix[0][0].coordinate(NegX, NegY, NegZ);
-        let construction_points = [a, b]
+        let c = switch_matrix[1][2].coordinate(NegX, PosY, NegZ);
+        let d = switch_matrix[1][2].coordinate(PosX, PosY, NegZ);
+        let e = switch_matrix[2][2].coordinate(NegX, PosY, NegZ);
+        let construction_points = [a, b, c, d, e]
             .iter()
             .map(|point| project_to_plane(&workplane, *point))
             .collect();
@@ -254,14 +259,14 @@ impl XZMatrixSketch {
     }
     fn world_at(&self, reference: char) -> DVec3 {
         let local = match reference {
-            'c' => dvec2(
+            'A' => dvec2(
                 // TODO: parameterize this magic number. The idea is to have
                 // at least 3 * COL_CURV angle so we can print from this side
                 self.local_at('a').x + 10. * Angle::Degrees(15. + 18.).radians().cos(),
                 0.,
             ),
-            'd' => dvec2(-VIRTUAL_INFINITY, -VIRTUAL_INFINITY),
-            'e' => dvec2(
+            'B' => dvec2(-VIRTUAL_INFINITY, -VIRTUAL_INFINITY),
+            'C' => dvec2(
                 self.local_at('a').x - VIRTUAL_INFINITY * Angle::Degrees(15. + 18.).radians().cos(),
                 VIRTUAL_INFINITY,
             ),
@@ -269,14 +274,38 @@ impl XZMatrixSketch {
         };
         self.workplane.to_world_pos(dvec3(local.x, local.y, 0.))
     }
-    fn shape(&self) -> Shape {
-        let outline = ['c', 'd', 'e']
+    fn wedge_cutout(&self) -> Shape {
+        let wedge_outline = ['A', 'B', 'C']
             .into_iter()
             .map(|point| self.world_at(point));
-        Wire::from_ordered_points(outline)
+        Wire::from_ordered_points(wedge_outline)
             .unwrap()
             .to_face()
             .extrude(self.workplane.normal() * VIRTUAL_INFINITY)
+            .into()
+    }
+    fn jack_access(&self) -> Shape {
+        let radius = 6.3 / 2.;
+        let jack_outline = self.workplane.circle(
+            self.local_at('e').x + 42.7 + 0.1,
+            1.8 + 0.2 + radius,
+            radius,
+        );
+        jack_outline
+            .to_face()
+            .extrude(self.workplane.normal() * -1. * VIRTUAL_INFINITY)
+            .into()
+    }
+    fn usb_access(&self) -> Shape {
+        let radius = 9.0 / 2.;
+        let usb_outline = self.workplane.circle(
+            self.local_at('e').x + 50.2 / 2.,
+            1.8 + 0.2 + 2.5 + 1.8 + radius,
+            radius,
+        );
+        usb_outline
+            .to_face()
+            .extrude(self.workplane.normal() * -1. * VIRTUAL_INFINITY)
             .into()
     }
 }
@@ -491,8 +520,18 @@ impl Keyboard {
             self.thumbs_xy_cutout_top_wire(),
         ])
         .into();
+        let y_for_cutouts = -1.
+            * (self.switch_matrix[2][2]
+                .coordinate(Direction::NegX, Direction::PosY, Direction::NegZ)
+                .y
+                - 3.);
+
         shape = shape
-            .subtract(&XZMatrixSketch::new(&self.switch_matrix).shape())
+            .subtract(
+                &XZMatrixSketch::new(&self.switch_matrix, -VIRTUAL_INFINITY / 2.).wedge_cutout(),
+            )
+            .subtract(&XZMatrixSketch::new(&self.switch_matrix, y_for_cutouts).jack_access())
+            .subtract(&XZMatrixSketch::new(&self.switch_matrix, y_for_cutouts).usb_access())
             .subtract(&thumbs_cutout)
             .subtract(&self.electronics_cutout())
             .into();
@@ -520,9 +559,16 @@ mod test {
         shape.write_stl("test_xy_matrix_sketch.stl").unwrap();
     }
     #[test]
-    fn test_xz_matrix_sketch() {
-        let shape: Shape = XZMatrixSketch::new(&Keyboard::new().switch_matrix).shape();
-        shape.write_stl("test_xz_matrix_sketch.stl").unwrap();
+    fn test_xz_wedge_cutout() {
+        let shape: Shape =
+            XZMatrixSketch::new(&Keyboard::new().switch_matrix, -VIRTUAL_INFINITY / 2.)
+                .wedge_cutout();
+        shape.write_stl("test_xz_wedge_cutout.stl").unwrap();
+    }
+    #[test]
+    fn test_xz_jack_access() {
+        let shape: Shape = XZMatrixSketch::new(&Keyboard::new().switch_matrix, -20.).jack_access();
+        shape.write_stl("test_xz_jack_access.stl").unwrap();
     }
     #[test]
     fn test_thumbs_cutout() {
