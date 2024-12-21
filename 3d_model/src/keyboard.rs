@@ -1,7 +1,7 @@
 use crate::geometry;
 use crate::params::{
-    COL_ANGLES_Y, NUM_COLS, NUM_ROWS, ROW_ANGLES_X, SWITCH_PLATE_XYZ, THUMB0_ROTATION, THUMB0_XYZ,
-    VIRTUAL_INFINITY,
+    COL_ANGLES_Y, NUM_COLS, NUM_ROWS, ROW_ANGLES_X, SWITCH_FOOTPRINT_WIRES, SWITCH_PLATE_XYZ,
+    THUMB0_ROTATION, THUMB0_XYZ, VIRTUAL_INFINITY,
 };
 use crate::switch::Switch;
 use glam::{dvec2, dvec3, DVec2, DVec3};
@@ -466,6 +466,53 @@ impl Keyboard {
             shape
         }
     }
+    fn switch_base_pos(&self, col: usize, row: usize, is_left: bool) -> DVec3 {
+        let coord_2_2 =
+            self.switch_matrix[2][2].coordinate(Direction::NegX, Direction::PosY, Direction::NegZ);
+        dvec3(coord_2_2.x, coord_2_2.y, 1.8 + 0.2)
+            + dvec3(
+                0.1 + 2.5 + col as f64 * 10. + if is_left { 0. } else { 5. },
+                -1. * (0.1 + 3. + 31. + (2. - row as f64) * 5.),
+                0.,
+            )
+    }
+    fn cylinder_connecting_two_points(a: DVec3, b: DVec3, radius: f64) -> Shape {
+        let a_sphere = Shape::sphere(radius).at(a).build();
+        let b_sphere = Shape::sphere(radius).at(b).build();
+        let cylinder: Shape = Shape::cylinder_from_points(a, b, radius).into();
+        a_sphere.union(&cylinder).union(&b_sphere).into()
+    }
+    fn wire_holes(&self) -> Shape {
+        let wire_radius = SWITCH_FOOTPRINT_WIRES[0].2;
+        let mut shapes = (0..NUM_COLS)
+            .flat_map(|col| {
+                (0..NUM_ROWS)
+                    .map(|row| {
+                        let switch_top_left = self.switch_matrix[col][row].left_wire_coord();
+                        let switch_bottom_left = self.switch_base_pos(col, row, true);
+                        let switch_top_right = self.switch_matrix[col][row].right_wire_coord();
+                        let switch_bottom_right = self.switch_base_pos(col, row, false);
+
+                        Self::cylinder_connecting_two_points(
+                            switch_top_left,
+                            switch_bottom_left,
+                            wire_radius,
+                        )
+                        .union(&Self::cylinder_connecting_two_points(
+                            switch_top_right,
+                            switch_bottom_right,
+                            wire_radius,
+                        )).into()
+                    })
+                    .collect::<Vec<_>>()
+            })
+            .collect::<Vec<Shape>>();
+        let mut union = shapes.pop().expect("We have more than zero switches");
+        for shape in shapes {
+            union = union.union(&shape).into();
+        }
+        union
+    }
     pub fn shape(&self) -> Shape {
         let mut shape: Shape = Solid::loft([
             self.bottom_xy_matrix_wire(),
@@ -520,11 +567,13 @@ impl Keyboard {
             self.thumbs_xy_cutout_top_wire(),
         ])
         .into();
-        let y_for_cutouts = -1.
-            * (self.switch_matrix[2][2]
-                .coordinate(Direction::NegX, Direction::PosY, Direction::NegZ)
-                .y
-                - 3.);
+
+        let coord_2_2 =
+            self.switch_matrix[2][2].coordinate(Direction::NegX, Direction::PosY, Direction::NegZ);
+
+        let y_for_cutouts = -1. * (coord_2_2.y - 3.);
+
+        let wire_holes = self.wire_holes();
 
         shape = shape
             .subtract(
@@ -534,6 +583,7 @@ impl Keyboard {
             .subtract(&XZMatrixSketch::new(&self.switch_matrix, y_for_cutouts).usb_access())
             .subtract(&thumbs_cutout)
             .subtract(&self.electronics_cutout())
+            .subtract(&wire_holes)
             .into();
         shape
     }

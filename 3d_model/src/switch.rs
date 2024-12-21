@@ -5,7 +5,7 @@ use crate::params::{
 use glam::{dvec3, DVec3};
 #[cfg(test)]
 use opencascade::angle::RVec;
-use opencascade::primitives::{Direction, Face, Shape, Wire};
+use opencascade::primitives::{Direction, Shape, Wire};
 use opencascade::workplane::Workplane;
 #[cfg(test)]
 use opencascade::Error;
@@ -127,29 +127,6 @@ impl Switch {
         )
         .to_face()
     }
-    #[allow(unused)]
-    pub fn bottom_face(&self) -> Face {
-        centered_rectangle(
-            self.workplane
-                .clone()
-                .translated(-SWITCH_PLATE_XYZ.z * self.workplane.normal()),
-            SWITCH_PLATE_XYZ.x,
-            SWITCH_PLATE_XYZ.y,
-        )
-        .to_face()
-    }
-    #[allow(unused)]
-    pub fn wire_faces(&self) -> Vec<Face> {
-        SWITCH_FOOTPRINT_WIRES
-            .iter()
-            .map(|(x, y, radius, _depth)| {
-                self.bottom_face()
-                    .workplane()
-                    .circle(*x, *y, *radius)
-                    .to_face()
-            })
-            .collect()
-    }
     pub fn coordinate(&self, x: Direction, y: Direction, z: Direction) -> DVec3 {
         let x = match x {
             Direction::PosX => SWITCH_PLATE_XYZ.x / 2.,
@@ -167,6 +144,14 @@ impl Switch {
             _ => panic!("Please, only use PosZ or NegZ for the z Direction"),
         };
         self.to_world_pos(dvec3(x, y, z))
+    }
+    pub fn left_wire_coord(&self) -> DVec3 {
+        let (x, y, _r, depth) = SWITCH_FOOTPRINT_WIRES[1];
+        self.to_world_pos(dvec3(x, y, -depth))
+    }
+    pub fn right_wire_coord(&self) -> DVec3 {
+        let (x, y, _r, depth) = SWITCH_FOOTPRINT_WIRES[0];
+        self.to_world_pos(dvec3(x, y, -depth))
     }
     pub fn to_world_pos(&self, point: DVec3) -> DVec3 {
         self.workplane.to_world_pos(point)
