@@ -6,6 +6,8 @@ use glam::{dvec3, DVec3};
 #[cfg(test)]
 use opencascade::angle::RVec;
 use opencascade::primitives::{Direction, Shape, Wire};
+#[cfg(test)]
+use opencascade::primitives::Face;
 use opencascade::workplane::Workplane;
 #[cfg(test)]
 use opencascade::Error;

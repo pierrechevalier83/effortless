@@ -482,6 +482,9 @@ impl Keyboard {
         let cylinder: Shape = Shape::cylinder_from_points(a, b, radius).into();
         a_sphere.union(&cylinder).union(&b_sphere).into()
     }
+    // I know I made a horrible mess. Just trying to route the wires somewhat automatically so they
+    // don't create issues.
+    // Don't judge me, please. Or do. I deserve it. And I don't care :p
     fn wire_holes(&self) -> Shape {
         let wire_radius = SWITCH_FOOTPRINT_WIRES[0].2;
         let mut shapes = (0..NUM_COLS)
@@ -493,16 +496,75 @@ impl Keyboard {
                         let switch_top_right = self.switch_matrix[col][row].right_wire_coord();
                         let switch_bottom_right = self.switch_base_pos(col, row, false);
 
+                        let mut above_bottom_left = switch_bottom_left.clone();
+                        above_bottom_left.z += 2. + 6.5 * col as f64;
+                        let mut below_top_left = switch_top_left.clone();
+                        below_top_left.z -= if col == 0 {
+                            if row == 1 {
+                                7.
+                            } else {
+                                9.
+                            }
+                        } else if col == 1 {
+                            2.
+                        } else if col == 2 && row == 1 {
+                            2.
+                        } else {
+                            0.1
+                        };
+                        if col == 0 {
+                            below_top_left.x += 5.;
+                        }
+                        let mut above_bottom_right = switch_bottom_right.clone();
+                        above_bottom_right.z += 2. + 3.0 + 6.5 * col as f64;
+                        let mut below_top_right = switch_top_right.clone();
+                        below_top_right.z -= if col == 0 {
+                            if row == 1 {
+                                6.
+                            } else if row == 0 {
+                                8.
+                            } else {
+                                7.
+                            }
+                        } else if col == 1 {
+                            1.
+                        } else {
+                            0.1
+                        };
+                        if col == 0 {
+                            below_top_right.x += 5.;
+                        }
                         Self::cylinder_connecting_two_points(
-                            switch_top_left,
                             switch_bottom_left,
+                            above_bottom_left,
                             wire_radius,
                         )
                         .union(&Self::cylinder_connecting_two_points(
-                            switch_top_right,
-                            switch_bottom_right,
+                            above_bottom_left,
+                            below_top_left,
                             wire_radius,
-                        )).into()
+                        ))
+                        .union(&Self::cylinder_connecting_two_points(
+                            below_top_left,
+                            switch_top_left,
+                            wire_radius,
+                        ))
+                        .union(&Self::cylinder_connecting_two_points(
+                            switch_bottom_right,
+                            above_bottom_right,
+                            wire_radius,
+                        ))
+                        .union(&Self::cylinder_connecting_two_points(
+                            above_bottom_right,
+                            below_top_right,
+                            wire_radius,
+                        ))
+                        .union(&Self::cylinder_connecting_two_points(
+                            below_top_right,
+                            switch_top_right,
+                            wire_radius,
+                        ))
+                        .into()
                     })
                     .collect::<Vec<_>>()
             })
@@ -619,6 +681,11 @@ mod test {
     fn test_xz_jack_access() {
         let shape: Shape = XZMatrixSketch::new(&Keyboard::new().switch_matrix, -20.).jack_access();
         shape.write_stl("test_xz_jack_access.stl").unwrap();
+    }
+    #[test]
+    fn test_wire_holes() {
+        let shape: Shape = Keyboard::new().wire_holes();
+        shape.write_stl("test_wire_holes.stl").unwrap();
     }
     #[test]
     fn test_thumbs_cutout() {
