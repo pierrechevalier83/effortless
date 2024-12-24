@@ -1,7 +1,7 @@
 use crate::geometry;
 use crate::params::{
-    COL_ANGLES_Y, NUM_COLS, NUM_ROWS, ROW_ANGLES_X, SWITCH_FOOTPRINT_WIRES, SWITCH_PLATE_XYZ,
-    THUMB0_ROTATION, THUMB0_XYZ, VIRTUAL_INFINITY,
+    COL_ANGLES_Y, COL_Y_STAGGER, NUM_COLS, NUM_ROWS, ROW_ANGLES_X, SWITCH_FOOTPRINT_WIRES,
+    SWITCH_PLATE_XYZ, THUMB0_ROTATION, THUMB0_XYZ, VIRTUAL_INFINITY,
 };
 use crate::switch::Switch;
 use glam::{dvec2, dvec3, DVec2, DVec3};
@@ -533,6 +533,27 @@ impl Keyboard {
                         };
                         if col == 0 {
                             below_top_right.x += 5.;
+                        }
+                        // Offset left from right in the y axis to minimize interference from same
+                        // switch
+                        if row != 1 {
+                            below_top_left.x += COL_Y_STAGGER[col].abs();
+                            below_top_left.y -= COL_Y_STAGGER[col];
+                            below_top_right.x += COL_Y_STAGGER[col].abs();
+                            below_top_right.y -= COL_Y_STAGGER[col];
+                        }
+                        {
+                            if col == 1 {
+                                above_bottom_left.y += 2.;
+                                below_top_left.y += 2.;
+                                above_bottom_right.y -= 2.;
+                                below_top_right.y -= 2.;
+                            } else if col == 2 {
+                                above_bottom_left.y -= 1.;
+                                below_top_left.y -= 1.;
+                                above_bottom_right.y += 1.;
+                                below_top_right.y += 1.;
+                            }
                         }
                         Self::cylinder_connecting_two_points(
                             switch_bottom_left,
