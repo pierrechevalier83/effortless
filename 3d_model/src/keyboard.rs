@@ -297,12 +297,10 @@ impl XZMatrixSketch {
             .into()
     }
     fn usb_access(&self) -> Shape {
-        let radius = 9.0 / 2.;
-        let usb_outline = self.workplane.circle(
-            self.local_at('e').x + 50.2 / 2.,
-            1.8 + 0.2 + 2.5 + 1.8 + radius,
-            radius,
-        );
+        let radius = 10.5 / 2.;
+        let usb_outline = self
+            .workplane
+            .circle(self.local_at('e').x + 50.2 / 2., 7.0, radius);
         usb_outline
             .to_face()
             .extrude(self.workplane.normal() * -1. * VIRTUAL_INFINITY)
