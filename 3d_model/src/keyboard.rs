@@ -106,12 +106,17 @@ impl XYMatrixSketch {
             'A' => dvec2(VIRTUAL_INFINITY, self.local_at('l').y),
             'B' => dvec2(VIRTUAL_INFINITY, -VIRTUAL_INFINITY),
             'C' => dvec2(self.local_at('r').x, -VIRTUAL_INFINITY),
+            // PCB
+            // top-left
             'D' => dvec2(self.local_at('e').x - 1.1, self.local_at('e').y - 3.),
+            // top-right
             'E' => dvec2(self.local_at('e').x - 1.1 + 51.0, self.local_at('e').y - 3.),
+            // bottom-right
             'F' => dvec2(
                 self.local_at('e').x + 51.0 - 1.1,
                 self.local_at('e').y - 51.0 - 3.,
             ),
+            // bottom-left
             'G' => dvec2(self.local_at('e').x - 1.1, self.local_at('e').y - 51.0 - 3.),
             // RP2040
             'H' => dvec2(
@@ -146,6 +151,14 @@ impl XYMatrixSketch {
             'O' => dvec2(
                 self.local_at('e').x + 42.7 + 0.1 - 6.5 / 2. - 1.1,
                 self.local_at('e').y - 16. - 3.,
+            ),
+            // Holes cutout
+            // top-left
+            'P' => dvec2(self.local_at('e').x - 1.1, self.local_at('e').y - 27.5 - 3.),
+            // top-right
+            'Q' => dvec2(
+                self.local_at('e').x + 51.0 - 1.1,
+                self.local_at('e').y - 27.5 - 3.,
             ),
             _ => self.local_at(reference),
         };
@@ -204,7 +217,7 @@ impl XYMatrixSketch {
         let rp2040: Shape = Wire::from_ordered_points(rp2040_outline)
             .unwrap()
             .to_face()
-            .extrude(self.workplane.normal() * (1.8 + 0.2 + 2.5 + 1.8 + 7.0 + 0.2))
+            .extrude(self.workplane.normal() * (13.5))
             .into();
         let jack_outline = ['L', 'M', 'N', 'O']
             .into_iter()
@@ -214,7 +227,18 @@ impl XYMatrixSketch {
             .to_face()
             .extrude(self.workplane.normal() * (1.8 + 0.2 + 6.3 + 0.2))
             .into();
-        Shape::union(&pcb, &rp2040).union(&jack).into()
+        let holes_cutout_outline = ['P', 'Q', 'F', 'G']
+            .into_iter()
+            .map(|point| self.world_at(point));
+        let holes_cutout: Shape = Wire::from_ordered_points(holes_cutout_outline)
+            .unwrap()
+            .to_face()
+            .extrude(self.workplane.normal() * (13.5))
+            .into();
+        Shape::union(&pcb, &rp2040)
+            .union(&jack)
+            .union(&holes_cutout)
+            .into()
     }
 }
 
@@ -495,64 +519,25 @@ impl Keyboard {
                         let switch_bottom_right = self.switch_base_pos(col, row as isize, false);
 
                         let mut above_bottom_left = switch_bottom_left.clone();
-                        above_bottom_left.z += 2. + 6.5 * col as f64;
-                        let mut below_top_left = switch_top_left.clone();
-                        below_top_left.z -= if col == 0 {
-                            if row == 1 {
-                                7.
-                            } else {
-                                9.
-                            }
+                        above_bottom_left.z += if col == 0 {
+                            3.
                         } else if col == 1 {
-                            2.
-                        } else if col == 2 && row == 1 {
-                            2.
+                            6.
+                        } else if col == 2 {
+                            9.
                         } else {
-                            0.1
+                            13.5
                         };
-                        if col == 0 {
-                            below_top_left.x += 5.;
-                        }
                         let mut above_bottom_right = switch_bottom_right.clone();
-                        above_bottom_right.z += 2. + 3.0 + 6.5 * col as f64;
-                        let mut below_top_right = switch_top_right.clone();
-                        below_top_right.z -= if col == 0 {
-                            if row == 1 {
-                                6.
-                            } else if row == 0 {
-                                8.
-                            } else {
-                                7.
-                            }
+                        above_bottom_right.z += if col == 0 {
+                            4.
                         } else if col == 1 {
-                            1.
+                            7.
+                        } else if col == 2 {
+                            10.
                         } else {
-                            0.1
+                            13.5
                         };
-                        if col == 0 {
-                            below_top_right.x += 5.;
-                        }
-                        // Offset left from right in the y axis to minimize interference from same
-                        // switch
-                        if row != 1 {
-                            below_top_left.x += COL_Y_STAGGER[col].abs();
-                            below_top_left.y -= COL_Y_STAGGER[col];
-                            below_top_right.x += COL_Y_STAGGER[col].abs();
-                            below_top_right.y -= COL_Y_STAGGER[col];
-                        }
-                        {
-                            if col == 1 {
-                                above_bottom_left.y += 2.;
-                                below_top_left.y += 2.;
-                                above_bottom_right.y -= 2.;
-                                below_top_right.y -= 2.;
-                            } else if col == 2 {
-                                above_bottom_left.y -= 1.;
-                                below_top_left.y -= 1.;
-                                above_bottom_right.y += 1.;
-                                below_top_right.y += 1.;
-                            }
-                        }
                         Self::cylinder_connecting_two_points(
                             switch_bottom_left,
                             above_bottom_left,
@@ -560,11 +545,6 @@ impl Keyboard {
                         )
                         .union(&Self::cylinder_connecting_two_points(
                             above_bottom_left,
-                            below_top_left,
-                            wire_radius,
-                        ))
-                        .union(&Self::cylinder_connecting_two_points(
-                            below_top_left,
                             switch_top_left,
                             wire_radius,
                         ))
@@ -575,11 +555,6 @@ impl Keyboard {
                         ))
                         .union(&Self::cylinder_connecting_two_points(
                             above_bottom_right,
-                            below_top_right,
-                            wire_radius,
-                        ))
-                        .union(&Self::cylinder_connecting_two_points(
-                            below_top_right,
                             switch_top_right,
                             wire_radius,
                         ))
