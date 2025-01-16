@@ -106,45 +106,45 @@ impl XYMatrixSketch {
             'A' => dvec2(VIRTUAL_INFINITY, self.local_at('l').y),
             'B' => dvec2(VIRTUAL_INFINITY, -VIRTUAL_INFINITY),
             'C' => dvec2(self.local_at('r').x, -VIRTUAL_INFINITY),
-            'D' => dvec2(self.local_at('e').x, self.local_at('e').y - 3.),
-            'E' => dvec2(self.local_at('e').x + 50.2, self.local_at('e').y - 3.),
+            'D' => dvec2(self.local_at('e').x - 1.1, self.local_at('e').y - 3.),
+            'E' => dvec2(self.local_at('e').x - 1.1 + 51.0, self.local_at('e').y - 3.),
             'F' => dvec2(
-                self.local_at('e').x + 50.2,
-                self.local_at('e').y - 50.2 - 3.,
+                self.local_at('e').x + 51.0 - 1.1,
+                self.local_at('e').y - 51.0 - 3.,
             ),
-            'G' => dvec2(self.local_at('e').x, self.local_at('e').y - 50.2 - 3.),
+            'G' => dvec2(self.local_at('e').x - 1.1, self.local_at('e').y - 51.0 - 3.),
             // RP2040
             'H' => dvec2(
-                self.local_at('e').x + 50.2 / 2. - 9.2,
+                self.local_at('e').x + 51.0 / 2. - 9.2 - 1.1,
                 self.local_at('e').y - 3.,
             ),
             'I' => dvec2(
-                self.local_at('e').x + 50.2 / 2. + 9.2,
+                self.local_at('e').x + 51.0 / 2. + 9.2 - 1.1,
                 self.local_at('e').y - 3.,
             ),
             'J' => dvec2(
-                self.local_at('e').x + 50.2 / 2. + 9.2,
+                self.local_at('e').x + 51.0 / 2. + 9.2 - 1.1,
                 self.local_at('e').y - 27.5 - 3.,
             ),
             'K' => dvec2(
-                self.local_at('e').x + 50.2 / 2. - 9.2,
+                self.local_at('e').x + 51.0 / 2. - 9.2 - 1.1,
                 self.local_at('e').y - 27.5 - 3.,
             ),
             // Jack
             'L' => dvec2(
-                self.local_at('e').x + 42.7 + 0.1 - 6.5 / 2.,
+                self.local_at('e').x + 42.7 + 0.1 - 6.5 / 2. - 1.1,
                 self.local_at('e').y - 3.,
             ),
             'M' => dvec2(
-                self.local_at('e').x + 42.7 + 0.1 + 6.5 / 2.,
+                self.local_at('e').x + 42.7 + 0.1 + 6.5 / 2. - 1.1,
                 self.local_at('e').y - 3.,
             ),
             'N' => dvec2(
-                self.local_at('e').x + 42.7 + 0.1 + 6.5 / 2.,
+                self.local_at('e').x + 42.7 + 0.1 + 6.5 / 2. - 1.1,
                 self.local_at('e').y - 16. - 3.,
             ),
             'O' => dvec2(
-                self.local_at('e').x + 42.7 + 0.1 - 6.5 / 2.,
+                self.local_at('e').x + 42.7 + 0.1 - 6.5 / 2. - 1.1,
                 self.local_at('e').y - 16. - 3.,
             ),
             _ => self.local_at(reference),
@@ -212,7 +212,7 @@ impl XYMatrixSketch {
         let jack: Shape = Wire::from_ordered_points(jack_outline)
             .unwrap()
             .to_face()
-            .extrude(self.workplane.normal() * (1.8 + 0.2 + 5.0 + 0.2))
+            .extrude(self.workplane.normal() * (1.8 + 0.2 + 6.3 + 0.2))
             .into();
         Shape::union(&pcb, &rp2040).union(&jack).into()
     }
@@ -287,7 +287,7 @@ impl XZMatrixSketch {
     fn jack_access(&self) -> Shape {
         let radius = 6.3 / 2.;
         let jack_outline = self.workplane.circle(
-            self.local_at('e').x + 42.7 + 0.1,
+            self.local_at('e').x + 42.7 + 0.1 - 1.1,
             1.8 + 0.2 + radius,
             radius,
         );
@@ -298,9 +298,9 @@ impl XZMatrixSketch {
     }
     fn usb_access(&self) -> Shape {
         let radius = 10.5 / 2.;
-        let usb_outline = self
-            .workplane
-            .circle(self.local_at('e').x + 50.2 / 2., 7.0, radius);
+        let usb_outline =
+            self.workplane
+                .circle(self.local_at('e').x + 51.0 / 2. - 1.1, 7.0, radius);
         usb_outline
             .to_face()
             .extrude(self.workplane.normal() * -1. * VIRTUAL_INFINITY)
@@ -467,7 +467,7 @@ impl Keyboard {
     fn switch_base_pos(&self, col: usize, row: isize, is_left: bool) -> DVec3 {
         let coord_2_2 =
             self.switch_matrix[2][2].coordinate(Direction::NegX, Direction::PosY, Direction::NegZ);
-        dvec3(coord_2_2.x, coord_2_2.y, 1.8 + 0.2)
+        dvec3(coord_2_2.x - 1.1, coord_2_2.y, 1.8 + 0.2)
             + dvec3(
                 0.1 + 2.5 + col as f64 * 10. + if is_left { 0. } else { 5. },
                 -1. * (0.1 + 3. + 31. + (2. - row as f64) * 5.),
