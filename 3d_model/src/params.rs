@@ -60,8 +60,8 @@ pub(crate) const SWITCH_FOOTPRINT_LEFT_WIRES: [(f64, f64, f64, f64); 2] = [
     (-5., -3.8, 2.0 / 2., SWITCH_PLATE_XYZ.z),
 ];
 pub(crate) const SWITCH_FOOTPRINT_RIGHT_WIRES: [(f64, f64, f64, f64); 2] = [
-    (0., -5.9, 2.0 / 2., SWITCH_PLATE_XYZ.z + 2.3),
-    (5., -3.8, 2.0 / 2., SWITCH_PLATE_XYZ.z + 2.3),
+    (0., -5.9, 2.0 / 2., SWITCH_PLATE_XYZ.z),
+    (5., -3.8, 2.0 / 2., SWITCH_PLATE_XYZ.z),
 ];
 
 pub(crate) const VIRTUAL_INFINITY: f64 = 1_000.;

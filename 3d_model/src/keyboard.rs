@@ -352,7 +352,10 @@ impl Keyboard {
                         Angle::Degrees(0.),
                     );
                     let mid_plane = Workplane::xy().transformed(mid_switch_pos, col_rotation);
-                    let mid_switch = Switch::new(mid_plane.clone(), hand);
+                    let mid_switch = match (hand, col) {
+                        (Hand::Right, 0) => Switch::with_extra_depth(mid_plane.clone(), hand, 0.5),
+                        _ => Switch::new(mid_plane.clone(), hand),
+                    };
                     let top_switch_pos = mid_switch.to_world_pos(dvec3(
                         0.,
                         geometry::row_delta_y(),
@@ -369,7 +372,10 @@ impl Keyboard {
                     );
                     let top_plane =
                         Workplane::xy().transformed(top_switch_pos, top_switch_rotation);
-                    let top_switch = Switch::new(top_plane, hand);
+                    let top_switch = match (hand, col) {
+                        (Hand::Right, 0) => Switch::with_extra_depth(top_plane.clone(), hand, 3.5),
+                        _ => Switch::new(top_plane.clone(), hand),
+                    };
                     let bottom_switch_pos = mid_switch.to_world_pos(dvec3(
                         0.,
                         -geometry::row_delta_y(),
@@ -386,7 +392,12 @@ impl Keyboard {
                     );
                     let bottom_plane =
                         Workplane::xy().transformed(bottom_switch_pos, bottom_switch_rotation);
-                    let bottom_switch = Switch::new(bottom_plane, hand);
+                    let bottom_switch = match (hand, col) {
+                        (Hand::Right, 0) => {
+                            Switch::with_extra_depth(bottom_plane.clone(), hand, 1.5)
+                        }
+                        _ => Switch::new(bottom_plane.clone(), hand),
+                    };
                     vec![bottom_switch, mid_switch, top_switch]
                 })
                 .collect(),
@@ -495,10 +506,24 @@ impl Keyboard {
             self.switch_matrix[2][2].coordinate(Direction::NegX, Direction::PosY, Direction::NegZ);
         dvec3(coord_2_2.x - 1.1, coord_2_2.y, 1.8 + 0.2)
             + dvec3(
-                0.1 + 2.5 + col as f64 * 10. + match self.hand {
-            Hand::Left => if is_left { 0. } else { 5. },
-            Hand::Right => if is_left { 5. } else { 0. },
-            },
+                0.1 + 2.5
+                    + col as f64 * 10.
+                    + match self.hand {
+                        Hand::Left => {
+                            if is_left {
+                                0.
+                            } else {
+                                5.
+                            }
+                        }
+                        Hand::Right => {
+                            if is_left {
+                                5.
+                            } else {
+                                0.
+                            }
+                        }
+                    },
                 -1. * (0.1 + 2. + 31. + (2. - row as f64) * 5.),
                 0.,
             )

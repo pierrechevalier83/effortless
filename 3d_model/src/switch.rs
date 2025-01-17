@@ -54,7 +54,8 @@ pub enum Hand {
 
 pub struct Switch {
     pub workplane: Workplane,
-    pub hand: Hand,
+    hand: Hand,
+    extra_depth: Option<f64>,
 }
 
 impl Switch {
@@ -62,7 +63,19 @@ impl Switch {
     // The position will be the center of the top face of the switch.
     pub fn new(workplane: Workplane, hand: Hand) -> Self {
         //position: DVec3, rotation: RVec) -> Self {
-        Self { workplane, hand }
+        Self {
+            workplane,
+            hand,
+            extra_depth: None,
+        }
+    }
+    pub fn with_extra_depth(workplane: Workplane, hand: Hand, extra_depth: f64) -> Self {
+        //position: DVec3, rotation: RVec) -> Self {
+        Self {
+            workplane,
+            hand,
+            extra_depth: Some(extra_depth),
+        }
     }
     #[cfg(test)]
     fn shape(&self) -> Shape {
@@ -121,7 +134,7 @@ impl Switch {
                     .clone()
                     .circle(*x, *y, *radius)
                     .to_face()
-                    .extrude(-depth * self.workplane.normal())
+                    .extrude(-(depth + self.extra_depth.unwrap_or(0.)) * self.workplane.normal())
             })
             .collect::<Vec<_>>();
 
@@ -205,14 +218,17 @@ mod tests {
     }
     #[test]
     fn test_one_uncentered_switch() {
-        Switch::new(Workplane::xy().transformed(
-            dvec3(0., 20., 30.),
-            rvec(
-                Angle::Degrees(10.),
-                Angle::Degrees(-20.),
-                Angle::Degrees(0.),
+        Switch::new(
+            Workplane::xy().transformed(
+                dvec3(0., 20., 30.),
+                rvec(
+                    Angle::Degrees(10.),
+                    Angle::Degrees(-20.),
+                    Angle::Degrees(0.),
+                ),
             ),
-        ), Hand::Left)
+            Hand::Left,
+        )
         .write_stl("test_one_uncentered_switch.stl")
         .unwrap();
     }
