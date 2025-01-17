@@ -114,10 +114,10 @@ impl XYMatrixSketch {
             // bottom-right
             'F' => dvec2(
                 self.local_at('e').x + 51.0 - 1.1,
-                self.local_at('e').y - 51.0 - 2.,
+                self.local_at('e').y - 50.5 - 2.,
             ),
             // bottom-left
-            'G' => dvec2(self.local_at('e').x - 1.1, self.local_at('e').y - 51.0 - 2.),
+            'G' => dvec2(self.local_at('e').x - 1.1, self.local_at('e').y - 50.5 - 2.),
             // RP2040
             'H' => dvec2(
                 self.local_at('e').x + 51.0 / 2. - 9.5 - 1.1,
