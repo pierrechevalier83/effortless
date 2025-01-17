@@ -108,57 +108,57 @@ impl XYMatrixSketch {
             'C' => dvec2(self.local_at('r').x, -VIRTUAL_INFINITY),
             // PCB
             // top-left
-            'D' => dvec2(self.local_at('e').x - 1.1, self.local_at('e').y - 3.),
+            'D' => dvec2(self.local_at('e').x - 1.1, self.local_at('e').y - 2.),
             // top-right
-            'E' => dvec2(self.local_at('e').x - 1.1 + 51.0, self.local_at('e').y - 3.),
+            'E' => dvec2(self.local_at('e').x - 1.1 + 51.0, self.local_at('e').y - 2.),
             // bottom-right
             'F' => dvec2(
                 self.local_at('e').x + 51.0 - 1.1,
-                self.local_at('e').y - 51.0 - 3.,
+                self.local_at('e').y - 51.0 - 2.,
             ),
             // bottom-left
-            'G' => dvec2(self.local_at('e').x - 1.1, self.local_at('e').y - 51.0 - 3.),
+            'G' => dvec2(self.local_at('e').x - 1.1, self.local_at('e').y - 51.0 - 2.),
             // RP2040
             'H' => dvec2(
                 self.local_at('e').x + 51.0 / 2. - 9.2 - 1.1,
-                self.local_at('e').y - 3.,
+                self.local_at('e').y - 2.,
             ),
             'I' => dvec2(
                 self.local_at('e').x + 51.0 / 2. + 9.2 - 1.1,
-                self.local_at('e').y - 3.,
+                self.local_at('e').y - 2.,
             ),
             'J' => dvec2(
                 self.local_at('e').x + 51.0 / 2. + 9.2 - 1.1,
-                self.local_at('e').y - 27.5 - 3.,
+                self.local_at('e').y - 27.5 - 2.,
             ),
             'K' => dvec2(
                 self.local_at('e').x + 51.0 / 2. - 9.2 - 1.1,
-                self.local_at('e').y - 27.5 - 3.,
+                self.local_at('e').y - 27.5 - 2.,
             ),
             // Jack
             'L' => dvec2(
                 self.local_at('e').x + 42.7 + 0.1 - 6.5 / 2. - 1.1,
-                self.local_at('e').y - 3.,
+                self.local_at('e').y - 2.,
             ),
             'M' => dvec2(
                 self.local_at('e').x + 42.7 + 0.1 + 6.5 / 2. - 1.1,
-                self.local_at('e').y - 3.,
+                self.local_at('e').y - 2.,
             ),
             'N' => dvec2(
                 self.local_at('e').x + 42.7 + 0.1 + 6.5 / 2. - 1.1,
-                self.local_at('e').y - 16. - 3.,
+                self.local_at('e').y - 16. - 2.,
             ),
             'O' => dvec2(
                 self.local_at('e').x + 42.7 + 0.1 - 6.5 / 2. - 1.1,
-                self.local_at('e').y - 16. - 3.,
+                self.local_at('e').y - 16. - 2.,
             ),
             // Holes cutout
             // top-left
-            'P' => dvec2(self.local_at('e').x - 1.1, self.local_at('e').y - 27.5 - 3.),
+            'P' => dvec2(self.local_at('e').x - 1.1, self.local_at('e').y - 27.5 - 2.),
             // top-right
             'Q' => dvec2(
                 self.local_at('e').x + 51.0 - 1.1,
-                self.local_at('e').y - 27.5 - 3.,
+                self.local_at('e').y - 27.5 - 2.,
             ),
             _ => self.local_at(reference),
         };
@@ -494,7 +494,7 @@ impl Keyboard {
         dvec3(coord_2_2.x - 1.1, coord_2_2.y, 1.8 + 0.2)
             + dvec3(
                 0.1 + 2.5 + col as f64 * 10. + if is_left { 0. } else { 5. },
-                -1. * (0.1 + 3. + 31. + (2. - row as f64) * 5.),
+                -1. * (0.1 + 2. + 31. + (2. - row as f64) * 5.),
                 0.,
             )
     }
