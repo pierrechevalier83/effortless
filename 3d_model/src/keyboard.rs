@@ -541,7 +541,7 @@ impl Keyboard {
                         Self::cylinder_connecting_two_points(
                             switch_bottom_left,
                             above_bottom_left,
-                            wire_radius,
+                            wire_radius + 0.5,
                         )
                         .union(&Self::cylinder_connecting_two_points(
                             above_bottom_left,
@@ -551,7 +551,7 @@ impl Keyboard {
                         .union(&Self::cylinder_connecting_two_points(
                             switch_bottom_right,
                             above_bottom_right,
-                            wire_radius,
+                            wire_radius + 0.5,
                         ))
                         .union(&Self::cylinder_connecting_two_points(
                             above_bottom_right,
