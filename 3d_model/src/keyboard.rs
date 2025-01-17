@@ -120,36 +120,36 @@ impl XYMatrixSketch {
             'G' => dvec2(self.local_at('e').x - 1.1, self.local_at('e').y - 51.0 - 2.),
             // RP2040
             'H' => dvec2(
-                self.local_at('e').x + 51.0 / 2. - 9.2 - 1.1,
+                self.local_at('e').x + 51.0 / 2. - 9.5 - 1.1,
                 self.local_at('e').y - 2.,
             ),
             'I' => dvec2(
-                self.local_at('e').x + 51.0 / 2. + 9.2 - 1.1,
+                self.local_at('e').x + 51.0 / 2. + 9.5 - 1.1,
                 self.local_at('e').y - 2.,
             ),
             'J' => dvec2(
-                self.local_at('e').x + 51.0 / 2. + 9.2 - 1.1,
+                self.local_at('e').x + 51.0 / 2. + 9.5 - 1.1,
                 self.local_at('e').y - 27.0 - 2.,
             ),
             'K' => dvec2(
-                self.local_at('e').x + 51.0 / 2. - 9.2 - 1.1,
+                self.local_at('e').x + 51.0 / 2. - 9.5 - 1.1,
                 self.local_at('e').y - 27.0 - 2.,
             ),
             // Jack
             'L' => dvec2(
-                self.local_at('e').x + 42.7 + 0.1 - 6.5 / 2. - 1.1,
+                self.local_at('e').x + 42.7 + 0.1 - 6.7 / 2. - 1.1,
                 self.local_at('e').y - 2.,
             ),
             'M' => dvec2(
-                self.local_at('e').x + 42.7 + 0.1 + 6.5 / 2. - 1.1,
+                self.local_at('e').x + 42.7 + 0.1 + 6.7 / 2. - 1.1,
                 self.local_at('e').y - 2.,
             ),
             'N' => dvec2(
-                self.local_at('e').x + 42.7 + 0.1 + 6.5 / 2. - 1.1,
+                self.local_at('e').x + 42.7 + 0.1 + 6.7 / 2. - 1.1,
                 self.local_at('e').y - 16. - 2.,
             ),
             'O' => dvec2(
-                self.local_at('e').x + 42.7 + 0.1 - 6.5 / 2. - 1.1,
+                self.local_at('e').x + 42.7 + 0.1 - 6.7 / 2. - 1.1,
                 self.local_at('e').y - 16. - 2.,
             ),
             // Holes cutout
