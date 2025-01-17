@@ -1,13 +1,13 @@
 use crate::params::{
-    SWITCH_FOOTPRINT_HOLES, SWITCH_FOOTPRINT_WIRES, SWITCH_HOLE_XYZ, SWITCH_PLATE_XYZ,
-    VIRTUAL_INFINITY,
+    SWITCH_FOOTPRINT_HOLES, SWITCH_FOOTPRINT_LEFT_WIRES, SWITCH_FOOTPRINT_RIGHT_WIRES,
+    SWITCH_HOLE_XYZ, SWITCH_PLATE_XYZ, VIRTUAL_INFINITY,
 };
 use glam::{dvec3, DVec3};
 #[cfg(test)]
 use opencascade::angle::RVec;
-use opencascade::primitives::{Direction, Shape, Wire};
 #[cfg(test)]
 use opencascade::primitives::Face;
+use opencascade::primitives::{Direction, Shape, Wire};
 use opencascade::workplane::Workplane;
 #[cfg(test)]
 use opencascade::Error;
@@ -46,16 +46,23 @@ fn centered_rectangle_with_optional_margins(
         .close()
 }
 
+#[derive(Clone, Copy)]
+pub enum Hand {
+    Left,
+    Right,
+}
+
 pub struct Switch {
     pub workplane: Workplane,
+    pub hand: Hand,
 }
 
 impl Switch {
     // Create a switch at a certain position, with a certain rotation.
     // The position will be the center of the top face of the switch.
-    pub fn new(workplane: Workplane) -> Self {
+    pub fn new(workplane: Workplane, hand: Hand) -> Self {
         //position: DVec3, rotation: RVec) -> Self {
-        Self { workplane }
+        Self { workplane, hand }
     }
     #[cfg(test)]
     fn shape(&self) -> Shape {
@@ -102,7 +109,13 @@ impl Switch {
                 .into();
         let holes = SWITCH_FOOTPRINT_HOLES
             .iter()
-            .chain(SWITCH_FOOTPRINT_WIRES.iter())
+            .chain(
+                match self.hand {
+                    Hand::Left => SWITCH_FOOTPRINT_LEFT_WIRES,
+                    Hand::Right => SWITCH_FOOTPRINT_RIGHT_WIRES,
+                }
+                .iter(),
+            )
             .map(|(x, y, radius, depth)| {
                 self.workplane
                     .clone()
@@ -148,11 +161,17 @@ impl Switch {
         self.to_world_pos(dvec3(x, y, z))
     }
     pub fn left_wire_coord(&self) -> DVec3 {
-        let (x, y, _r, depth) = SWITCH_FOOTPRINT_WIRES[1];
+        let (x, y, _r, depth) = match self.hand {
+            Hand::Left => SWITCH_FOOTPRINT_LEFT_WIRES,
+            Hand::Right => SWITCH_FOOTPRINT_RIGHT_WIRES,
+        }[1];
         self.to_world_pos(dvec3(x, y, -depth))
     }
     pub fn right_wire_coord(&self) -> DVec3 {
-        let (x, y, _r, depth) = SWITCH_FOOTPRINT_WIRES[0];
+        let (x, y, _r, depth) = match self.hand {
+            Hand::Left => SWITCH_FOOTPRINT_LEFT_WIRES,
+            Hand::Right => SWITCH_FOOTPRINT_RIGHT_WIRES,
+        }[0];
         self.to_world_pos(dvec3(x, y, -depth))
     }
     pub fn to_world_pos(&self, point: DVec3) -> DVec3 {
@@ -177,9 +196,12 @@ mod tests {
     use opencascade::angle::{rvec, Angle};
     #[test]
     fn test_one_centered_switch() {
-        Switch::new(Workplane::xy().transformed(DVec3::ZERO, RVec::x(Angle::Degrees(0.))))
-            .write_stl("test_one_centered_switch.stl")
-            .unwrap();
+        Switch::new(
+            Workplane::xy().transformed(DVec3::ZERO, RVec::x(Angle::Degrees(0.))),
+            Hand::Left,
+        )
+        .write_stl("test_one_centered_switch.stl")
+        .unwrap();
     }
     #[test]
     fn test_one_uncentered_switch() {
@@ -190,7 +212,7 @@ mod tests {
                 Angle::Degrees(-20.),
                 Angle::Degrees(0.),
             ),
-        ))
+        ), Hand::Left)
         .write_stl("test_one_uncentered_switch.stl")
         .unwrap();
     }

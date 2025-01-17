@@ -55,9 +55,13 @@ pub(crate) const SWITCH_FOOTPRINT_HOLES: [(f64, f64, f64, f64); 3] = [
     (-5.5, 0., 2.0 / 2., 4.85),
     (5.5, 0., 2.0 / 2., 4.85),
 ];
-pub(crate) const SWITCH_FOOTPRINT_WIRES: [(f64, f64, f64, f64); 2] = [
+pub(crate) const SWITCH_FOOTPRINT_LEFT_WIRES: [(f64, f64, f64, f64); 2] = [
     (0., -5.9, 2.0 / 2., SWITCH_PLATE_XYZ.z),
     (-5., -3.8, 2.0 / 2., SWITCH_PLATE_XYZ.z),
+];
+pub(crate) const SWITCH_FOOTPRINT_RIGHT_WIRES: [(f64, f64, f64, f64); 2] = [
+    (0., -5.9, 2.0 / 2., SWITCH_PLATE_XYZ.z + 2.3),
+    (5., -3.8, 2.0 / 2., SWITCH_PLATE_XYZ.z + 2.3),
 ];
 
 pub(crate) const VIRTUAL_INFINITY: f64 = 1_000.;

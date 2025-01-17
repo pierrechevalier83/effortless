@@ -1,9 +1,9 @@
 use crate::geometry;
 use crate::params::{
-    COL_ANGLES_Y, COL_Y_STAGGER, NUM_COLS, NUM_ROWS, ROW_ANGLES_X, SWITCH_FOOTPRINT_WIRES,
-    SWITCH_PLATE_XYZ, THUMB0_ROTATION, THUMB0_XYZ, VIRTUAL_INFINITY,
+    COL_ANGLES_Y, NUM_COLS, NUM_ROWS, ROW_ANGLES_X, SWITCH_FOOTPRINT_LEFT_WIRES, SWITCH_PLATE_XYZ,
+    THUMB0_ROTATION, THUMB0_XYZ, VIRTUAL_INFINITY,
 };
-use crate::switch::Switch;
+use crate::switch::{Hand, Switch};
 use glam::{dvec2, dvec3, DVec2, DVec3};
 use opencascade::angle::{rvec, Angle};
 use opencascade::primitives::{Direction, Edge, Shape, Solid, Wire, WireBuilder};
@@ -12,6 +12,7 @@ use opencascade::workplane::Workplane;
 pub struct Keyboard {
     switch_matrix: Vec<Vec<Switch>>,
     thumbs: Vec<Switch>,
+    hand: Hand,
 }
 
 fn project_to_plane(workplane: &Workplane, world_pos: DVec3) -> DVec2 {
@@ -333,7 +334,7 @@ impl XZMatrixSketch {
 }
 
 impl Keyboard {
-    pub fn new() -> Self {
+    pub fn new(hand: Hand) -> Self {
         let col_x = geometry::col_x_positions();
         let col_y = geometry::col_y_positions();
         let col_z = geometry::col_z_positions();
@@ -351,7 +352,7 @@ impl Keyboard {
                         Angle::Degrees(0.),
                     );
                     let mid_plane = Workplane::xy().transformed(mid_switch_pos, col_rotation);
-                    let mid_switch = Switch::new(mid_plane.clone());
+                    let mid_switch = Switch::new(mid_plane.clone(), hand);
                     let top_switch_pos = mid_switch.to_world_pos(dvec3(
                         0.,
                         geometry::row_delta_y(),
@@ -368,7 +369,7 @@ impl Keyboard {
                     );
                     let top_plane =
                         Workplane::xy().transformed(top_switch_pos, top_switch_rotation);
-                    let top_switch = Switch::new(top_plane);
+                    let top_switch = Switch::new(top_plane, hand);
                     let bottom_switch_pos = mid_switch.to_world_pos(dvec3(
                         0.,
                         -geometry::row_delta_y(),
@@ -385,7 +386,7 @@ impl Keyboard {
                     );
                     let bottom_plane =
                         Workplane::xy().transformed(bottom_switch_pos, bottom_switch_rotation);
-                    let bottom_switch = Switch::new(bottom_plane);
+                    let bottom_switch = Switch::new(bottom_plane, hand);
                     vec![bottom_switch, mid_switch, top_switch]
                 })
                 .collect(),
@@ -393,12 +394,13 @@ impl Keyboard {
                 let thumbs_rotation = THUMB0_ROTATION;
                 let thumb0_position = THUMB0_XYZ;
                 let workplane0 = Workplane::xy().transformed(thumb0_position, thumbs_rotation);
-                let thumb0 = Switch::new(workplane0);
+                let thumb0 = Switch::new(workplane0, hand);
                 let thumb1_position = thumb0.to_world_pos(dvec3(SWITCH_PLATE_XYZ.x, 0., 0.));
                 let workplane1 = Workplane::xy().transformed(thumb1_position, thumbs_rotation);
-                let thumb1 = Switch::new(workplane1);
+                let thumb1 = Switch::new(workplane1, hand);
                 vec![thumb0, thumb1]
             },
+            hand,
         }
     }
     /// This is the shape we want around the keyboard in the XY axix, projected to the plane that
@@ -493,7 +495,10 @@ impl Keyboard {
             self.switch_matrix[2][2].coordinate(Direction::NegX, Direction::PosY, Direction::NegZ);
         dvec3(coord_2_2.x - 1.1, coord_2_2.y, 1.8 + 0.2)
             + dvec3(
-                0.1 + 2.5 + col as f64 * 10. + if is_left { 0. } else { 5. },
+                0.1 + 2.5 + col as f64 * 10. + match self.hand {
+            Hand::Left => if is_left { 0. } else { 5. },
+            Hand::Right => if is_left { 5. } else { 0. },
+            },
                 -1. * (0.1 + 2. + 31. + (2. - row as f64) * 5.),
                 0.,
             )
@@ -508,7 +513,7 @@ impl Keyboard {
     // don't create issues.
     // Don't judge me, please. Or do. I deserve it. And I don't care :p
     fn wire_holes(&self) -> Shape {
-        let wire_radius = SWITCH_FOOTPRINT_WIRES[0].2;
+        let wire_radius = SWITCH_FOOTPRINT_LEFT_WIRES[0].2;
         let mut shapes = (0..NUM_COLS)
             .flat_map(|col| {
                 (0..NUM_ROWS)
@@ -520,21 +525,39 @@ impl Keyboard {
 
                         let mut above_bottom_left = switch_bottom_left.clone();
                         above_bottom_left.z += if col == 0 {
-                            3.
+                            match self.hand {
+                                Hand::Left => 3.,
+                                Hand::Right => 4.,
+                            }
                         } else if col == 1 {
-                            6.
+                            match self.hand {
+                                Hand::Left => 6.,
+                                Hand::Right => 7.,
+                            }
                         } else if col == 2 {
-                            9.
+                            match self.hand {
+                                Hand::Left => 9.,
+                                Hand::Right => 10.,
+                            }
                         } else {
                             13.5
                         };
                         let mut above_bottom_right = switch_bottom_right.clone();
                         above_bottom_right.z += if col == 0 {
-                            4.
+                            match self.hand {
+                                Hand::Left => 4.,
+                                Hand::Right => 3.,
+                            }
                         } else if col == 1 {
-                            7.
+                            match self.hand {
+                                Hand::Left => 7.,
+                                Hand::Right => 6.,
+                            }
                         } else if col == 2 {
-                            10.
+                            match self.hand {
+                                Hand::Left => 10.,
+                                Hand::Right => 9.,
+                            }
                         } else {
                             13.5
                         };
@@ -708,12 +731,12 @@ mod test {
     use opencascade::primitives::Shape;
     #[test]
     fn test_keyboard_shape() {
-        let shape: Shape = Keyboard::new().shape();
+        let shape: Shape = Keyboard::new(Hand::Left).shape();
         shape.write_stl("test_keyboard_shape.stl").unwrap();
     }
     #[test]
     fn test_xy_matrix_sketch() {
-        let keyboard = Keyboard::new();
+        let keyboard = Keyboard::new(Hand::Left);
         let shape: Shape =
             XYMatrixSketch::new(&Workplane::xy(), &keyboard.switch_matrix, &keyboard.thumbs)
                 .wire()
@@ -723,24 +746,32 @@ mod test {
     }
     #[test]
     fn test_xz_wedge_cutout() {
-        let shape: Shape =
-            XZMatrixSketch::new(&Keyboard::new().switch_matrix, -VIRTUAL_INFINITY / 2.)
-                .wedge_cutout();
+        let shape: Shape = XZMatrixSketch::new(
+            &Keyboard::new(Hand::Left).switch_matrix,
+            -VIRTUAL_INFINITY / 2.,
+        )
+        .wedge_cutout();
         shape.write_stl("test_xz_wedge_cutout.stl").unwrap();
     }
     #[test]
     fn test_xz_jack_access() {
-        let shape: Shape = XZMatrixSketch::new(&Keyboard::new().switch_matrix, -20.).jack_access();
+        let shape: Shape =
+            XZMatrixSketch::new(&Keyboard::new(Hand::Left).switch_matrix, -20.).jack_access();
         shape.write_stl("test_xz_jack_access.stl").unwrap();
     }
     #[test]
-    fn test_wire_holes() {
-        let shape: Shape = Keyboard::new().wire_holes();
-        shape.write_stl("test_wire_holes.stl").unwrap();
+    fn test_wire_holes_left() {
+        let shape: Shape = Keyboard::new(Hand::Left).wire_holes();
+        shape.write_stl("test_wire_holes_left.stl").unwrap();
+    }
+    #[test]
+    fn test_wire_holes_right() {
+        let shape: Shape = Keyboard::new(Hand::Right).wire_holes();
+        shape.write_stl("test_wire_holes_right.stl").unwrap();
     }
     #[test]
     fn test_thumbs_cutout() {
-        let keyboard = Keyboard::new();
+        let keyboard = Keyboard::new(Hand::Left);
         let shape: Shape = Solid::loft([
             keyboard.thumbs_xy_cutout_bottom_wire(),
             keyboard.thumbs_xy_cutout_top_wire(),
