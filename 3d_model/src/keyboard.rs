@@ -1,7 +1,7 @@
 use crate::geometry;
 use crate::params::{
-    COL_ANGLES_Y, NUM_COLS, NUM_ROWS, ROW_ANGLES_X, SWITCH_FOOTPRINT_LEFT_WIRES, SWITCH_PLATE_XYZ,
-    THUMB0_ROTATION, THUMB0_XYZ, VIRTUAL_INFINITY,
+    COL_ANGLES_Y, NUM_COLS, NUM_ROWS, PCB_X_OFFSET, ROW_ANGLES_X, SWITCH_FOOTPRINT_LEFT_WIRES, 
+    SWITCH_PLATE_XYZ, THUMB0_ROTATION, THUMB0_XYZ, VIRTUAL_INFINITY,
 };
 use crate::switch::{Hand, Switch};
 use glam::{dvec2, dvec3, DVec2, DVec3};
@@ -109,56 +109,56 @@ impl XYMatrixSketch {
             'C' => dvec2(self.local_at('r').x, -VIRTUAL_INFINITY),
             // PCB
             // top-left
-            'D' => dvec2(self.local_at('e').x - 1.1, self.local_at('e').y - 2.),
+            'D' => dvec2(self.local_at('e').x + PCB_X_OFFSET, self.local_at('e').y - 2.),
             // top-right
-            'E' => dvec2(self.local_at('e').x - 1.1 + 51.0, self.local_at('e').y - 2.),
+            'E' => dvec2(self.local_at('e').x + PCB_X_OFFSET + 51.0, self.local_at('e').y - 2.),
             // bottom-right
             'F' => dvec2(
-                self.local_at('e').x + 51.0 - 1.1,
+                self.local_at('e').x + 51.0 + PCB_X_OFFSET,
                 self.local_at('e').y - 50.5 - 2.,
             ),
             // bottom-left
-            'G' => dvec2(self.local_at('e').x - 1.1, self.local_at('e').y - 50.5 - 2.),
+            'G' => dvec2(self.local_at('e').x + PCB_X_OFFSET, self.local_at('e').y - 50.5 - 2.),
             // RP2040
             'H' => dvec2(
-                self.local_at('e').x + 51.0 / 2. - 9.5 - 1.1,
+                self.local_at('e').x + 51.0 / 2. - 9.5 + PCB_X_OFFSET,
                 self.local_at('e').y - 2.,
             ),
             'I' => dvec2(
-                self.local_at('e').x + 51.0 / 2. + 9.5 - 1.1,
+                self.local_at('e').x + 51.0 / 2. + 9.5 + PCB_X_OFFSET,
                 self.local_at('e').y - 2.,
             ),
             'J' => dvec2(
-                self.local_at('e').x + 51.0 / 2. + 9.5 - 1.1,
+                self.local_at('e').x + 51.0 / 2. + 9.5 + PCB_X_OFFSET,
                 self.local_at('e').y - 27.0 - 2.,
             ),
             'K' => dvec2(
-                self.local_at('e').x + 51.0 / 2. - 9.5 - 1.1,
+                self.local_at('e').x + 51.0 / 2. - 9.5 + PCB_X_OFFSET,
                 self.local_at('e').y - 27.0 - 2.,
             ),
             // Jack
             'L' => dvec2(
-                self.local_at('e').x + 42.7 + 0.1 - 6.7 / 2. - 1.1,
+                self.local_at('e').x + 42.7 + 0.1 - 6.7 / 2. + PCB_X_OFFSET,
                 self.local_at('e').y - 2.,
             ),
             'M' => dvec2(
-                self.local_at('e').x + 42.7 + 0.1 + 6.7 / 2. - 1.1,
+                self.local_at('e').x + 42.7 + 0.1 + 6.7 / 2. + PCB_X_OFFSET,
                 self.local_at('e').y - 2.,
             ),
             'N' => dvec2(
-                self.local_at('e').x + 42.7 + 0.1 + 6.7 / 2. - 1.1,
+                self.local_at('e').x + 42.7 + 0.1 + 6.7 / 2. + PCB_X_OFFSET,
                 self.local_at('e').y - 16. - 2.,
             ),
             'O' => dvec2(
-                self.local_at('e').x + 42.7 + 0.1 - 6.7 / 2. - 1.1,
+                self.local_at('e').x + 42.7 + 0.1 - 6.7 / 2. + PCB_X_OFFSET,
                 self.local_at('e').y - 16. - 2.,
             ),
             // Holes cutout
             // top-left
-            'P' => dvec2(self.local_at('e').x - 1.1, self.local_at('e').y - 29. - 2.),
+            'P' => dvec2(self.local_at('e').x + PCB_X_OFFSET, self.local_at('e').y - 29. - 2.),
             // top-right
             'Q' => dvec2(
-                self.local_at('e').x + 51.0 - 1.1,
+                self.local_at('e').x + 51.0 + PCB_X_OFFSET,
                 self.local_at('e').y - 29. - 2.,
             ),
             _ => self.local_at(reference),
@@ -312,7 +312,7 @@ impl XZMatrixSketch {
     fn jack_access(&self) -> Shape {
         let radius = 6.3 / 2.;
         let jack_outline = self.workplane.circle(
-            self.local_at('e').x + 42.7 + 0.1 - 1.1,
+            self.local_at('e').x + 42.7 + 0.1 + PCB_X_OFFSET,
             1.8 + 0.2 + radius,
             radius,
         );
@@ -325,7 +325,7 @@ impl XZMatrixSketch {
         let radius = 10.5 / 2.;
         let usb_outline =
             self.workplane
-                .circle(self.local_at('e').x + 51.0 / 2. - 1.1, 7.0, radius);
+                .circle(self.local_at('e').x + 51.0 / 2. + PCB_X_OFFSET, 7.0, radius);
         usb_outline
             .to_face()
             .extrude(self.workplane.normal() * -1. * VIRTUAL_INFINITY)
@@ -504,7 +504,7 @@ impl Keyboard {
     fn switch_base_pos(&self, col: usize, row: isize, is_left: bool) -> DVec3 {
         let coord_2_2 =
             self.switch_matrix[2][2].coordinate(Direction::NegX, Direction::PosY, Direction::NegZ);
-        dvec3(coord_2_2.x - 1.1, coord_2_2.y, 1.8 + 0.2)
+        dvec3(coord_2_2.x + PCB_X_OFFSET, coord_2_2.y, 1.8 + 0.2)
             + dvec3(
                 0.1 + 2.5
                     + col as f64 * 10.

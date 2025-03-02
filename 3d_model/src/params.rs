@@ -12,6 +12,9 @@ pub(crate) const KEYCAP_XYZ: DVec3 = DVec3::new(17.5, 16.5, 8.);
 // Base Z-offset for column positions
 pub(crate) const BASE_Z_OFFSET: f64 = 10.0;
 
+// PCB positioning
+pub(crate) const PCB_X_OFFSET: f64 = -1.1;
+
 // Number of switches
 pub(crate) const NUM_COLS: usize = 5;
 pub(crate) const NUM_ROWS: usize = 3;
