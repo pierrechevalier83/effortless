@@ -15,6 +15,9 @@ pub(crate) const BASE_Z_OFFSET: f64 = 10.0;
 // PCB positioning
 pub(crate) const PCB_X_OFFSET: f64 = -3.1;
 
+// The ratio by which to scale wire diameter when a single channel needs to accommodate two wires
+pub(crate) const WIRE_DIAMETER_RATIO_FOR_TWO_WIRES: f64 = 2.0;
+
 // Number of switches
 pub(crate) const NUM_COLS: usize = 5;
 pub(crate) const NUM_ROWS: usize = 3;
@@ -61,13 +64,10 @@ pub(crate) const SWITCH_FOOTPRINT_HOLES: [(f64, f64, f64, f64); 3] = [
     (-5.5, 0., 2.0 / 2., 4.85),
     (5.5, 0., 2.0 / 2., 4.85),
 ];
-pub(crate) const SWITCH_FOOTPRINT_LEFT_WIRES: [(f64, f64, f64, f64); 2] = [
-    (0., -5.9, 2.0 / 2., SWITCH_PLATE_XYZ.z),
-    (-5., -3.8, 2.0 / 2., SWITCH_PLATE_XYZ.z),
-];
-pub(crate) const SWITCH_FOOTPRINT_RIGHT_WIRES: [(f64, f64, f64, f64); 2] = [
-    (0., -5.9, 2.0 / 2., SWITCH_PLATE_XYZ.z),
-    (5., -3.8, 2.0 / 2., SWITCH_PLATE_XYZ.z),
+pub(crate) const SWITCH_FOOTPRINT_WIRES: [(f64, f64, f64, f64); 3] = [
+    (0., -5.9, 2.0 / 2., SWITCH_PLATE_XYZ.z),  // Center pin
+    (-5., -3.8, 2.0 / 2., SWITCH_PLATE_XYZ.z), // Left pin
+    (5., -3.8, 2.0 / 2., SWITCH_PLATE_XYZ.z),  // Right pin (for symmetry)
 ];
 
 pub(crate) const VIRTUAL_INFINITY: f64 = 1_000.;

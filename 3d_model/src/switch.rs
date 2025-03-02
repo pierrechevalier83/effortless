@@ -1,6 +1,6 @@
 use crate::params::{
-    SWITCH_FOOTPRINT_HOLES, SWITCH_FOOTPRINT_LEFT_WIRES, SWITCH_FOOTPRINT_RIGHT_WIRES,
-    SWITCH_HOLE_XYZ, SWITCH_PLATE_XYZ, VIRTUAL_INFINITY,
+    SWITCH_FOOTPRINT_HOLES, SWITCH_FOOTPRINT_WIRES, SWITCH_HOLE_XYZ, SWITCH_PLATE_XYZ,
+    VIRTUAL_INFINITY,
 };
 use glam::{dvec3, DVec3};
 #[cfg(test)]
@@ -46,34 +46,23 @@ fn centered_rectangle_with_optional_margins(
         .close()
 }
 
-#[derive(Clone, Copy)]
-pub enum Hand {
-    Left,
-    Right,
-}
-
 pub struct Switch {
     pub workplane: Workplane,
-    hand: Hand,
     extra_depth: Option<f64>,
 }
 
 impl Switch {
     // Create a switch at a certain position, with a certain rotation.
     // The position will be the center of the top face of the switch.
-    pub fn new(workplane: Workplane, hand: Hand) -> Self {
-        //position: DVec3, rotation: RVec) -> Self {
+    pub fn new(workplane: Workplane) -> Self {
         Self {
             workplane,
-            hand,
             extra_depth: None,
         }
     }
-    pub fn with_extra_depth(workplane: Workplane, hand: Hand, extra_depth: f64) -> Self {
-        //position: DVec3, rotation: RVec) -> Self {
+    pub fn with_extra_depth(workplane: Workplane, extra_depth: f64) -> Self {
         Self {
             workplane,
-            hand,
             extra_depth: Some(extra_depth),
         }
     }
@@ -120,15 +109,28 @@ impl Switch {
                 .to_face()
                 .extrude(-SWITCH_HOLE_XYZ.z * self.workplane.normal())
                 .into();
+        let center_hole = SWITCH_FOOTPRINT_HOLES[0];
+
+        let top_y = -(center_hole.2 + 1.);
+        let bottom_y = - SWITCH_HOLE_XYZ.y / 2.;
+        let left_x = -SWITCH_HOLE_XYZ.x / 2.;
+        let right_x = SWITCH_HOLE_XYZ.x / 2.;
+        let pins_cutout = self
+            .workplane
+            .sketch()
+            .move_to(left_x, bottom_y) // Bottom Left
+            .line_to(left_x, top_y) // Top Left
+            .line_to(right_x, top_y) // Top Right
+            .line_to(right_x, bottom_y) // Bottom Right
+            .close()
+            .to_face()
+            .extrude(
+                -(SWITCH_PLATE_XYZ.z + self.extra_depth.unwrap_or(0.)) * self.workplane.normal(),
+            )
+            .into();
         let holes = SWITCH_FOOTPRINT_HOLES
             .iter()
-            .chain(
-                match self.hand {
-                    Hand::Left => SWITCH_FOOTPRINT_LEFT_WIRES,
-                    Hand::Right => SWITCH_FOOTPRINT_RIGHT_WIRES,
-                }
-                .iter(),
-            )
+            .chain(SWITCH_FOOTPRINT_WIRES.iter())
             .map(|(x, y, radius, depth)| {
                 self.workplane
                     .clone()
@@ -140,7 +142,8 @@ impl Switch {
 
         let mut body = shape
             .subtract(&all_space_above_the_switch)
-            .subtract(&switch_body_cutout);
+            .subtract(&switch_body_cutout)
+            .subtract(&pins_cutout);
         for hole in holes {
             body = body.subtract(&hole.into());
         }
@@ -173,19 +176,27 @@ impl Switch {
         };
         self.to_world_pos(dvec3(x, y, z))
     }
-    pub fn left_wire_coord(&self) -> DVec3 {
-        let (x, y, _r, depth) = match self.hand {
-            Hand::Left => SWITCH_FOOTPRINT_LEFT_WIRES,
-            Hand::Right => SWITCH_FOOTPRINT_RIGHT_WIRES,
-        }[1];
-        self.to_world_pos(dvec3(x, y, -depth))
-    }
-    pub fn right_wire_coord(&self) -> DVec3 {
-        let (x, y, _r, depth) = match self.hand {
-            Hand::Left => SWITCH_FOOTPRINT_LEFT_WIRES,
-            Hand::Right => SWITCH_FOOTPRINT_RIGHT_WIRES,
-        }[0];
-        self.to_world_pos(dvec3(x, y, -depth))
+    pub fn wire_coord(&self) -> DVec3 {
+        // Calculate the center point between left and right wire pins
+        let (_, center_hole_y, center_hole_radius, _) = SWITCH_FOOTPRINT_HOLES[0];
+        let left_pin = SWITCH_FOOTPRINT_WIRES[1];
+        let right_pin = SWITCH_FOOTPRINT_WIRES[2];
+
+        // Get the center X between the two pins
+        let center_x = (left_pin.0 + right_pin.0) / 2.0;
+
+        // Calculate the proper Y position between center pin and bottom pins
+        let center_pin_bottom_edge = center_hole_y - center_hole_radius;
+        let center_y = center_pin_bottom_edge - center_hole_radius;
+
+        // For vertical center, find the midpoint between center_y and the bottom pin position
+        let center_bottom_y = left_pin.1 - left_pin.2; // Same as in the channel calculation
+        let vertical_center_y = (center_y + center_bottom_y) / 2.0;
+
+        // Use the same depth as the pins
+        let (_, _, _, depth) = left_pin;
+
+        self.to_world_pos(dvec3(center_x, vertical_center_y, -depth))
     }
     pub fn to_world_pos(&self, point: DVec3) -> DVec3 {
         self.workplane.to_world_pos(point)
@@ -197,6 +208,7 @@ impl Switch {
         self.workplane
             .translated(self.to_world_pos(dvec3(0., 0., -SWITCH_PLATE_XYZ.z)))
     }
+
     #[cfg(test)]
     fn write_stl(&self, file: &str) -> Result<(), Error> {
         self.shape().write_stl(file)
@@ -209,26 +221,20 @@ mod tests {
     use opencascade::angle::{rvec, Angle};
     #[test]
     fn test_one_centered_switch() {
-        Switch::new(
-            Workplane::xy().transformed(DVec3::ZERO, RVec::x(Angle::Degrees(0.))),
-            Hand::Left,
-        )
-        .write_stl("test_one_centered_switch.stl")
-        .unwrap();
+        Switch::new(Workplane::xy().transformed(DVec3::ZERO, RVec::x(Angle::Degrees(0.))))
+            .write_stl("test_one_centered_switch.stl")
+            .unwrap();
     }
     #[test]
     fn test_one_uncentered_switch() {
-        Switch::new(
-            Workplane::xy().transformed(
-                dvec3(0., 20., 30.),
-                rvec(
-                    Angle::Degrees(10.),
-                    Angle::Degrees(-20.),
-                    Angle::Degrees(0.),
-                ),
+        Switch::new(Workplane::xy().transformed(
+            dvec3(0., 20., 30.),
+            rvec(
+                Angle::Degrees(10.),
+                Angle::Degrees(-20.),
+                Angle::Degrees(0.),
             ),
-            Hand::Left,
-        )
+        ))
         .write_stl("test_one_uncentered_switch.stl")
         .unwrap();
     }

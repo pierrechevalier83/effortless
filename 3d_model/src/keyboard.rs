@@ -1,9 +1,10 @@
 use crate::geometry;
 use crate::params::{
-    COL_ANGLES_Y, NUM_COLS, NUM_ROWS, PCB_X_OFFSET, ROW_ANGLES_X, SWITCH_FOOTPRINT_LEFT_WIRES, 
+    COL_ANGLES_Y, NUM_COLS, NUM_ROWS, PCB_X_OFFSET, ROW_ANGLES_X, SWITCH_FOOTPRINT_WIRES,
     SWITCH_PLATE_XYZ, THUMB0_ROTATION, THUMB0_XYZ, VIRTUAL_INFINITY,
+    WIRE_DIAMETER_RATIO_FOR_TWO_WIRES,
 };
-use crate::switch::{Hand, Switch};
+use crate::switch::Switch;
 use glam::{dvec2, dvec3, DVec2, DVec3};
 use opencascade::angle::{rvec, Angle};
 use opencascade::primitives::{Direction, Edge, Shape, Solid, Wire, WireBuilder};
@@ -12,7 +13,6 @@ use opencascade::workplane::Workplane;
 pub struct Keyboard {
     switch_matrix: Vec<Vec<Switch>>,
     thumbs: Vec<Switch>,
-    hand: Hand,
 }
 
 fn project_to_plane(workplane: &Workplane, world_pos: DVec3) -> DVec2 {
@@ -109,16 +109,25 @@ impl XYMatrixSketch {
             'C' => dvec2(self.local_at('r').x, -VIRTUAL_INFINITY),
             // PCB
             // top-left
-            'D' => dvec2(self.local_at('e').x + PCB_X_OFFSET, self.local_at('e').y - 2.),
+            'D' => dvec2(
+                self.local_at('e').x + PCB_X_OFFSET,
+                self.local_at('e').y - 2.,
+            ),
             // top-right
-            'E' => dvec2(self.local_at('e').x + PCB_X_OFFSET + 51.0, self.local_at('e').y - 2.),
+            'E' => dvec2(
+                self.local_at('e').x + PCB_X_OFFSET + 51.0,
+                self.local_at('e').y - 2.,
+            ),
             // bottom-right
             'F' => dvec2(
                 self.local_at('e').x + 51.0 + PCB_X_OFFSET,
                 self.local_at('e').y - 50.5 - 2.,
             ),
             // bottom-left
-            'G' => dvec2(self.local_at('e').x + PCB_X_OFFSET, self.local_at('e').y - 50.5 - 2.),
+            'G' => dvec2(
+                self.local_at('e').x + PCB_X_OFFSET,
+                self.local_at('e').y - 50.5 - 2.,
+            ),
             // RP2040
             'H' => dvec2(
                 self.local_at('e').x + 51.0 / 2. - 9.5 + PCB_X_OFFSET,
@@ -155,7 +164,10 @@ impl XYMatrixSketch {
             ),
             // Holes cutout
             // top-left
-            'P' => dvec2(self.local_at('e').x + PCB_X_OFFSET, self.local_at('e').y - 29. - 2.),
+            'P' => dvec2(
+                self.local_at('e').x + PCB_X_OFFSET,
+                self.local_at('e').y - 29. - 2.,
+            ),
             // top-right
             'Q' => dvec2(
                 self.local_at('e').x + 51.0 + PCB_X_OFFSET,
@@ -334,7 +346,7 @@ impl XZMatrixSketch {
 }
 
 impl Keyboard {
-    pub fn new(hand: Hand) -> Self {
+    pub fn new() -> Self {
         let col_x = geometry::col_x_positions();
         let col_y = geometry::col_y_positions();
         let col_z = geometry::col_z_positions();
@@ -352,9 +364,11 @@ impl Keyboard {
                         Angle::Degrees(0.),
                     );
                     let mid_plane = Workplane::xy().transformed(mid_switch_pos, col_rotation);
-                    let mid_switch = match (hand, col) {
-                        (Hand::Right, 0) => Switch::with_extra_depth(mid_plane.clone(), hand, 0.5),
-                        _ => Switch::new(mid_plane.clone(), hand),
+                    // Add extra depth for column 0 - we no longer need hand-specific logic
+                    let mid_switch = if col == 0 {
+                        Switch::with_extra_depth(mid_plane.clone(), 0.5)
+                    } else {
+                        Switch::new(mid_plane.clone())
                     };
                     let top_switch_pos = mid_switch.to_world_pos(dvec3(
                         0.,
@@ -372,9 +386,11 @@ impl Keyboard {
                     );
                     let top_plane =
                         Workplane::xy().transformed(top_switch_pos, top_switch_rotation);
-                    let top_switch = match (hand, col) {
-                        (Hand::Right, 0) => Switch::with_extra_depth(top_plane.clone(), hand, 3.5),
-                        _ => Switch::new(top_plane.clone(), hand),
+                    // Add extra depth for column 0
+                    let top_switch = if col == 0 {
+                        Switch::with_extra_depth(top_plane.clone(), 3.5)
+                    } else {
+                        Switch::new(top_plane.clone())
                     };
                     let bottom_switch_pos = mid_switch.to_world_pos(dvec3(
                         0.,
@@ -392,11 +408,11 @@ impl Keyboard {
                     );
                     let bottom_plane =
                         Workplane::xy().transformed(bottom_switch_pos, bottom_switch_rotation);
-                    let bottom_switch = match (hand, col) {
-                        (Hand::Right, 0) => {
-                            Switch::with_extra_depth(bottom_plane.clone(), hand, 1.5)
-                        }
-                        _ => Switch::new(bottom_plane.clone(), hand),
+                    // Add extra depth for column 0
+                    let bottom_switch = if col == 0 {
+                        Switch::with_extra_depth(bottom_plane.clone(), 1.5)
+                    } else {
+                        Switch::new(bottom_plane.clone())
                     };
                     vec![bottom_switch, mid_switch, top_switch]
                 })
@@ -405,13 +421,12 @@ impl Keyboard {
                 let thumbs_rotation = THUMB0_ROTATION;
                 let thumb0_position = THUMB0_XYZ;
                 let workplane0 = Workplane::xy().transformed(thumb0_position, thumbs_rotation);
-                let thumb0 = Switch::new(workplane0, hand);
+                let thumb0 = Switch::new(workplane0);
                 let thumb1_position = thumb0.to_world_pos(dvec3(SWITCH_PLATE_XYZ.x, 0., 0.));
                 let workplane1 = Workplane::xy().transformed(thumb1_position, thumbs_rotation);
-                let thumb1 = Switch::new(workplane1, hand);
+                let thumb1 = Switch::new(workplane1);
                 vec![thumb0, thumb1]
             },
-            hand,
         }
     }
     /// This is the shape we want around the keyboard in the XY axix, projected to the plane that
@@ -501,29 +516,12 @@ impl Keyboard {
             shape
         }
     }
-    fn switch_base_pos(&self, col: usize, row: isize, is_left: bool) -> DVec3 {
+    fn switch_base_pos(&self, col: usize, row: isize) -> DVec3 {
         let coord_2_2 =
             self.switch_matrix[2][2].coordinate(Direction::NegX, Direction::PosY, Direction::NegZ);
         dvec3(coord_2_2.x + PCB_X_OFFSET, coord_2_2.y, 1.8 + 0.2)
             + dvec3(
-                0.1 + 2.5
-                    + col as f64 * 10.
-                    + match self.hand {
-                        Hand::Left => {
-                            if is_left {
-                                0.
-                            } else {
-                                5.
-                            }
-                        }
-                        Hand::Right => {
-                            if is_left {
-                                5.
-                            } else {
-                                0.
-                            }
-                        }
-                    },
+                0.1 + 2.5 + col as f64 * 10. + 2.5,
                 -1. * (0.1 + 2. + 31. + (2. - row as f64) * 5.),
                 0.,
             )
@@ -538,139 +536,64 @@ impl Keyboard {
     // don't create issues.
     // Don't judge me, please. Or do. I deserve it. And I don't care :p
     fn wire_holes(&self) -> Shape {
-        let wire_radius = SWITCH_FOOTPRINT_LEFT_WIRES[0].2;
+        let wire_radius = SWITCH_FOOTPRINT_WIRES[0].2;
+
+        // Calculate the base position for each switch
         let mut shapes = (0..NUM_COLS)
             .flat_map(|col| {
                 (0..NUM_ROWS)
                     .map(|row| {
-                        let switch_top_left = self.switch_matrix[col][row].left_wire_coord();
-                        let switch_bottom_left = self.switch_base_pos(col, row as isize, true);
-                        let switch_top_right = self.switch_matrix[col][row].right_wire_coord();
-                        let switch_bottom_right = self.switch_base_pos(col, row as isize, false);
+                        // Get the center top wire position
+                        let switch_top = self.switch_matrix[col][row].wire_coord();
 
-                        let mut above_bottom_left = switch_bottom_left.clone();
-                        above_bottom_left.z += if col == 0 {
-                            match self.hand {
-                                Hand::Left => 3.,
-                                Hand::Right => 4.,
-                            }
+                        // Get the proper PCB connection points
+                        let mut switch_base = self.switch_base_pos(col, row as isize);
+
+                        // Depth offsets to
+                        switch_base.z += if col == 0 {
+                            1.5
                         } else if col == 1 {
-                            match self.hand {
-                                Hand::Left => 6.,
-                                Hand::Right => 7.,
-                            }
-                        } else if col == 2 {
-                            match self.hand {
-                                Hand::Left => 9.,
-                                Hand::Right => 10.,
-                            }
+                            5.5
                         } else {
-                            13.5
+                            12.
                         };
-                        let mut above_bottom_right = switch_bottom_right.clone();
-                        above_bottom_right.z += if col == 0 {
-                            match self.hand {
-                                Hand::Left => 4.,
-                                Hand::Right => 3.,
-                            }
-                        } else if col == 1 {
-                            match self.hand {
-                                Hand::Left => 7.,
-                                Hand::Right => 6.,
-                            }
-                        } else if col == 2 {
-                            match self.hand {
-                                Hand::Left => 10.,
-                                Hand::Right => 9.,
-                            }
-                        } else {
-                            13.5
-                        };
+
                         Self::cylinder_connecting_two_points(
-                            switch_bottom_left,
-                            above_bottom_left,
-                            wire_radius + 0.5,
+                            switch_top,
+                            switch_base,
+                            wire_radius * WIRE_DIAMETER_RATIO_FOR_TWO_WIRES, // Scale radius for two wires
                         )
-                        .union(&Self::cylinder_connecting_two_points(
-                            above_bottom_left,
-                            switch_top_left,
-                            wire_radius,
-                        ))
-                        .union(&Self::cylinder_connecting_two_points(
-                            switch_bottom_right,
-                            above_bottom_right,
-                            wire_radius + 0.5,
-                        ))
-                        .union(&Self::cylinder_connecting_two_points(
-                            above_bottom_right,
-                            switch_top_right,
-                            wire_radius,
-                        ))
                         .into()
                     })
                     .collect::<Vec<_>>()
             })
             .collect::<Vec<Shape>>();
+
         let mut union = shapes.pop().expect("We have more than zero switches");
         for shape in shapes {
             union = union.union(&shape).into();
         }
-        let thumb0_base_left = self.switch_base_pos(3, -1, true);
-        let mut thumb0_above_base_left = thumb0_base_left.clone();
-        thumb0_above_base_left.z += 2.;
-        let thumb0_top_left = self.thumbs[0].left_wire_coord();
-        let thumb0_base_right = self.switch_base_pos(3, -1, false);
-        let mut thumb0_above_base_right = thumb0_base_right.clone();
-        thumb0_above_base_right.z += 2.;
-        let thumb0_top_right = self.thumbs[0].right_wire_coord();
-        let thumb1_base_left = self.switch_base_pos(4, -1, true);
-        let mut thumb1_above_base_left = thumb1_base_left.clone();
-        thumb1_above_base_left.z += 2.;
-        let thumb1_top_left = self.thumbs[1].left_wire_coord();
-        let thumb1_base_right = self.switch_base_pos(4, -1, false);
-        let mut thumb1_above_base_right = thumb1_base_right.clone();
-        thumb1_above_base_right.z += 2.;
-        let thumb1_top_right = self.thumbs[1].right_wire_coord();
+
+        // Handle thumb switches similarly with center wires
+        // Use proper PCB connection points for thumbs
+        let thumb0_top = self.thumbs[0].wire_coord();
+        let mut thumb0_base = self.switch_base_pos(3, -1);
+        thumb0_base.z += 2.;
+
+        let thumb1_top = self.thumbs[1].wire_coord();
+        let mut thumb1_base = self.switch_base_pos(4, -1);
+        thumb1_base.z += 2.;
+
         union
             .union(&Self::cylinder_connecting_two_points(
-                thumb0_base_left,
-                thumb0_above_base_left,
-                wire_radius,
+                thumb0_top,
+                thumb0_base,
+                wire_radius * WIRE_DIAMETER_RATIO_FOR_TWO_WIRES,
             ))
             .union(&Self::cylinder_connecting_two_points(
-                thumb0_above_base_left,
-                thumb0_top_left,
-                wire_radius,
-            ))
-            .union(&Self::cylinder_connecting_two_points(
-                thumb0_base_right,
-                thumb0_above_base_right,
-                wire_radius,
-            ))
-            .union(&Self::cylinder_connecting_two_points(
-                thumb0_above_base_right,
-                thumb0_top_right,
-                wire_radius,
-            ))
-            .union(&Self::cylinder_connecting_two_points(
-                thumb1_base_left,
-                thumb1_above_base_left,
-                wire_radius,
-            ))
-            .union(&Self::cylinder_connecting_two_points(
-                thumb1_above_base_left,
-                thumb1_top_left,
-                wire_radius,
-            ))
-            .union(&Self::cylinder_connecting_two_points(
-                thumb1_base_right,
-                thumb1_above_base_right,
-                wire_radius,
-            ))
-            .union(&Self::cylinder_connecting_two_points(
-                thumb1_above_base_right,
-                thumb1_top_right,
-                wire_radius,
+                thumb1_top,
+                thumb1_base,
+                wire_radius * WIRE_DIAMETER_RATIO_FOR_TWO_WIRES,
             ))
             .into()
     }
@@ -756,12 +679,12 @@ mod test {
     use opencascade::primitives::Shape;
     #[test]
     fn test_keyboard_shape() {
-        let shape: Shape = Keyboard::new(Hand::Left).shape();
+        let shape: Shape = Keyboard::new().shape();
         shape.write_stl("test_keyboard_shape.stl").unwrap();
     }
     #[test]
     fn test_xy_matrix_sketch() {
-        let keyboard = Keyboard::new(Hand::Left);
+        let keyboard = Keyboard::new();
         let shape: Shape =
             XYMatrixSketch::new(&Workplane::xy(), &keyboard.switch_matrix, &keyboard.thumbs)
                 .wire()
@@ -771,32 +694,24 @@ mod test {
     }
     #[test]
     fn test_xz_wedge_cutout() {
-        let shape: Shape = XZMatrixSketch::new(
-            &Keyboard::new(Hand::Left).switch_matrix,
-            -VIRTUAL_INFINITY / 2.,
-        )
-        .wedge_cutout();
+        let shape: Shape =
+            XZMatrixSketch::new(&Keyboard::new().switch_matrix, -VIRTUAL_INFINITY / 2.)
+                .wedge_cutout();
         shape.write_stl("test_xz_wedge_cutout.stl").unwrap();
     }
     #[test]
     fn test_xz_jack_access() {
-        let shape: Shape =
-            XZMatrixSketch::new(&Keyboard::new(Hand::Left).switch_matrix, -20.).jack_access();
+        let shape: Shape = XZMatrixSketch::new(&Keyboard::new().switch_matrix, -20.).jack_access();
         shape.write_stl("test_xz_jack_access.stl").unwrap();
     }
     #[test]
-    fn test_wire_holes_left() {
-        let shape: Shape = Keyboard::new(Hand::Left).wire_holes();
-        shape.write_stl("test_wire_holes_left.stl").unwrap();
-    }
-    #[test]
-    fn test_wire_holes_right() {
-        let shape: Shape = Keyboard::new(Hand::Right).wire_holes();
-        shape.write_stl("test_wire_holes_right.stl").unwrap();
+    fn test_wire_holes() {
+        let shape: Shape = Keyboard::new().wire_holes();
+        shape.write_stl("test_wire_holes.stl").unwrap();
     }
     #[test]
     fn test_thumbs_cutout() {
-        let keyboard = Keyboard::new(Hand::Left);
+        let keyboard = Keyboard::new();
         let shape: Shape = Solid::loft([
             keyboard.thumbs_xy_cutout_bottom_wire(),
             keyboard.thumbs_xy_cutout_top_wire(),
