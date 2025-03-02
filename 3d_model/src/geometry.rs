@@ -1,6 +1,6 @@
 use crate::params::{
-    COL_ANGLES_Y, COL_CURV, COL_Y_STAGGER, COL_Z_STAGGER, KEYCAP_XYZ, NUM_COLS, ROW_CURV,
-    SWITCH_PLATE_XYZ,
+    BASE_Z_OFFSET, COL_ANGLES_Y, COL_CURV, COL_Y_STAGGER, COL_Z_STAGGER, KEYCAP_XYZ, NUM_COLS,
+    ROW_CURV, SWITCH_PLATE_XYZ,
 };
 
 fn col_delta_y() -> [f64; NUM_COLS] {
@@ -58,7 +58,7 @@ pub fn col_x_positions() -> [f64; NUM_COLS] {
     [col0_x, col1_x, col2_x, col3_x, col4_x]
 }
 pub fn col_z_positions() -> [f64; NUM_COLS] {
-    let col0_z = 10. /* TODO: Z0? */ + COL_Z_STAGGER[0] * COL_ANGLES_Y[1].radians().cos();
+    let col0_z = BASE_Z_OFFSET + COL_Z_STAGGER[0] * COL_ANGLES_Y[1].radians().cos();
     let col1_z = col0_z
         + SWITCH_PLATE_XYZ.x / 2. * COL_ANGLES_Y[0].radians().sin()
         + SWITCH_PLATE_XYZ.x / 2. * COL_ANGLES_Y[1].radians().sin()
